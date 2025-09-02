@@ -1,0 +1,13 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "User Service API", "version": "1.0.0" },
+  "paths": {
+    "/health/live": { "get": { "summary": "Liveness", "responses": { "200": { "description": "OK" } } } },
+    "/health/ready": { "get": { "summary": "Readiness", "responses": { "200": { "description": "OK" } } } },
+    "/users/v1/me": { "get": { "summary": "Perfil do usuário autenticado", "tags": ["users"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "Dados do usuário" }, "401": { "description": "Sem contexto" } } } },
+    "/users/v1": { "post": { "summary": "Criar usuário", "tags": ["users"], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["id", "cpf", "nome", "email"], "properties": { "id": { "type": "string", "format": "uuid" }, "cpf": { "type": "string" }, "nome": { "type": "string" }, "email": { "type": "string", "format": "email" }, "departamento": { "type": "string" }, "cargo": { "type": "string" } } } } } }, "responses": { "201": { "description": "Criado" }, "409": { "description": "Duplicado" } } } },
+    "/users/v1/{id}": { "get": { "summary": "Obter usuário por id", "tags": ["users"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" }, "404": { "description": "Não encontrado" } } } },
+    "/users/v1/{id}/xp": { "patch": { "summary": "Alterar XP", "tags": ["users"], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["delta"], "properties": { "delta": { "type": "integer" } } } } } }, "responses": { "200": { "description": "Atualizado" }, "404": { "description": "Não encontrado" } } } }
+  },
+  "components": { "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" } } }
+}
