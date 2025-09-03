@@ -3,7 +3,6 @@ import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { logger } from './config/logger.js';
 import { loadOpenApi } from './config/openapi.js';
-import { healthRouter } from './routes/healthRoutes.js';
 import { userRouter } from './routes/userRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
@@ -16,7 +15,6 @@ export function createServer() {
   const openapiSpec = loadOpenApi('User Service API');
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec));
 
-  app.use(healthRouter);
   app.use('/users/v1', userRouter);
   app.use(errorHandler);
   return app;
