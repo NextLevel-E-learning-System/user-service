@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { createUserSchema, updateXpSchema } from '../validation/userSchemas.js';
-import { getMe, create, getById, patchXp } from '../services/userService.js';
+import { updateUserSchema, updateXpSchema } from '../validation/userSchemas.js';
+import { getMe,   getById, patchXp, update } from '../services/userService.js';
 import { HttpError } from '../utils/httpError.js';
 
 export async function meHandler(req: Request, res: Response, next: NextFunction) {
@@ -11,14 +11,14 @@ export async function meHandler(req: Request, res: Response, next: NextFunction)
   } catch (err) { next(err); }
 }
 
-export async function createUserHandler(req: Request, res: Response, next: NextFunction) {
-  const parsed = createUserSchema.safeParse(req.body);
+export async function updateUserHandler(req: Request, res: Response, next: NextFunction) {
+  const parsed = updateUserSchema.safeParse(req.body);
   if (!parsed.success) return next(new HttpError(400, 'validation_error', parsed.error.issues));
   try {
-    const created = await create(parsed.data);
-    res.status(201).json(created);
+    const updatedUser = await update(parsed.data);
+    res.status(201).json(updatedUser);
   } catch (err) { next(err); }
-}
+} 
 
 export async function getUserHandler(req: Request, res: Response, next: NextFunction) {
   try {

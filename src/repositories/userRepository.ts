@@ -7,9 +7,9 @@ export async function findById(id: string) {
   });
 }
 
-export async function createUser(data: { id: string; cpf: string; nome: string; email: string; departamento?: string; cargo?: string; }) {
-  const { id, cpf, nome, email, departamento, cargo } = data;
-  await withClient(c => c.query('insert into funcionarios (id, cpf, nome, email, departamento_id, cargo, xp_total, nivel, status) values ($1,$2,$3,$4,$5,$6,0,$7,$8)', [id, cpf, nome, email, departamento || null, cargo || null, 'Iniciante', 'ATIVO']));
+export async function updateUser(data: {  cpf: string; nome: string;  departamento?: string; cargo?: string; }) {
+  const {   cpf, nome,  departamento, cargo } = data;
+  await withClient(c => c.query('update funcionarios set cpf=$1, nome=$2, departamento_id=$3, cargo=$4 where id=$5', [cpf, nome, departamento , cargo ]));
 }
 
 export async function updateXp(id: string, delta: number) {
