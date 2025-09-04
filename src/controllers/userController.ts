@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { updateUserSchema, updateXpSchema } from '../validation/userSchemas.js';
-import { getMe, getById, patchXp, update, getDepartments } from '../services/userService.js';
+import { updateUserSchema, departmentCreateSchema, departmentUpdateSchema, listUsersQuerySchema, patchUserCompositeSchema } from '../validation/userSchemas.js';
+import { getMe, getById, update, getDepartments, createDept, updateDept, listAllUsers, compositeUpdate } from '../services/userService.js';
 import { HttpError } from '../utils/httpError.js';
 
 export async function meHandler(req: Request, res: Response, next: NextFunction) {
@@ -41,18 +41,51 @@ export async function getUserHandler(req: Request, res: Response, next: NextFunc
   } catch (err) { next(err); }
 }
 
-export async function patchXpHandler(req: Request, res: Response, next: NextFunction) {
-  const parsed = updateXpSchema.safeParse(req.body);
-  if (!parsed.success) return next(new HttpError(400, 'validation_error', parsed.error.issues));
-  try {
-    const updated = await patchXp(req.params.id, parsed.data.delta);
-    res.json(updated);
-  } catch (err) { next(err); }
-}
-
 export async function getDepartmentsHandler(req: Request, res: Response, next: NextFunction) {
   try {
     const departments = await getDepartments();
     res.json(departments);
+  } catch (err) { next(err); }
+}
+
+export async function createDepartmentHandler(req: Request, res: Response, next: NextFunction) {
+  const parsed = departmentCreateSchema.safeParse(req.body);
+  if (!parsed.success) return next(new HttpError(400, 'validation_error', parsed.error.issues));
+  try {
+    const roles = req.header('x-user-roles')?.split(',') || [];
+    const dept = await createDept(parsed.data, roles);
+    res.status(201).json(dept);
+  } catch (err) { next(err); }
+}
+
+export async function updateDepartmentHandler(req: Request, res: Response, next: NextFunction) {
+  const parsed = departmentUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return next(new HttpError(400, 'validation_error', parsed.error.issues));
+  try {
+    const roles = req.header('x-user-roles')?.split(',') || [];
+    const dept = await updateDept(req.params.codigo, parsed.data, roles);
+    res.json(dept);
+  } catch (err) { next(err); }
+}
+
+export async function listUsersHandler(req: Request, res: Response, next: NextFunction) {
+  const parsed = listUsersQuerySchema.safeParse(req.query);
+  if (!parsed.success) return next(new HttpError(400, 'validation_error', parsed.error.issues));
+  try {
+    const roles = req.header('x-user-roles')?.split(',') || [];
+    const users = await listAllUsers(parsed.data, roles);
+    res.json(users);
+  } catch (err) { next(err); }
+}
+
+
+export async function compositeUpdateHandler(req: Request, res: Response, next: NextFunction) {
+  const parsed = patchUserCompositeSchema.safeParse(req.body);
+  if (!parsed.success) return next(new HttpError(400, 'validation_error', parsed.error.issues));
+  try {
+    const roles = req.header('x-user-roles')?.split(',') || [];
+    const actorId = req.header('x-user-id') || '';
+    const data = await compositeUpdate(req.params.id, parsed.data, roles, actorId);
+    res.json(data);
   } catch (err) { next(err); }
 }

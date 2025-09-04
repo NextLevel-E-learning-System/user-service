@@ -1,300 +1,60 @@
 {
   "openapi": "3.0.3",
-  "info": { 
-    "title": "User Service API", 
-    "version": "1.1.0",
-    "description": "Serviço de gerenciamento de usuários e funcionários. Permite completar o cadastro após auto-registro, gerenciar departamentos e controlar XP."
+  "info": {
+    "title": "User Service API",
+    "version": "1.3.0",
+    "description": "API simplificada para gestão de usuários e departamentos. Rotas legadas removidas em favor de PATCH composto."
   },
   "paths": {
-    "/users/v1/me": { 
-      "get": { 
-        "summary": "Perfil do usuário autenticado", 
-        "tags": ["users"], 
-        "security": [{ "bearerAuth": [] }], 
-        "responses": { 
-          "200": { 
-            "description": "Dados do usuário",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/UserProfile" }
-              }
-            }
-          }, 
-          "401": { "description": "Token ausente ou inválido" },
-          "404": { "description": "Usuário não encontrado" }
-        } 
-      } 
-    },
-    "/users/v1": { 
-      "post": { 
-        "summary": "Completar cadastro do usuário autenticado", 
-        "description": "Permite que o usuário complete seu cadastro após o auto-registro. O ID do usuário é obtido automaticamente do token JWT (x-user-id). O registro básico já foi criado durante o auto-cadastro no auth-service, este endpoint completa os dados pessoais e profissionais. CPF não pode ser alterado após ser definido. Apenas instrutores podem alterar o email.",
-        "tags": ["users"], 
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { 
-          "required": true, 
-          "content": { 
-            "application/json": { 
-              "schema": { "$ref": "#/components/schemas/CompleteRegistration" },
-              "example": {
-                "nome": "João Silva",
-                "cpf": "12345678901",
-                "departamento_id": "TI",
-                "cargo": "Desenvolvedor"
-              }
-            } 
-          } 
-        }, 
-        "responses": { 
-          "200": { 
-            "description": "Cadastro atualizado com sucesso",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/UserProfile" }
-              }
-            }
-          }, 
-          "400": { 
-            "description": "Dados inválidos",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
-                "examples": {
-                  "validation_error": {
-                    "summary": "Erro de validação",
-                    "value": {
-                      "error": "validation_error",
-                      "details": ["CPF deve conter exatamente 11 dígitos"]
-                    }
-                  },
-                  "cpf_cannot_change": {
-                    "summary": "CPF não pode ser alterado",
-                    "value": {
-                      "error": "cpf_cannot_be_changed",
-                      "message": "CPF não pode ser alterado após ser definido"
-                    }
-                  },
-                  "invalid_department": {
-                    "summary": "Departamento inválido",
-                    "value": {
-                      "error": "invalid_department",
-                      "message": "Departamento não encontrado"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": { "description": "Token ausente ou inválido" },
-          "403": { 
-            "description": "Sem permissão para alterar email",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
-                "example": {
-                  "error": "email_change_not_allowed",
-                  "message": "Apenas instrutores podem alterar o email"
-                }
-              }
-            }
-          },
-          "404": { "description": "Usuário não encontrado" },
-          "409": { 
-            "description": "Dados duplicados",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" },
-                "examples": {
-                  "cpf_exists": {
-                    "summary": "CPF já existe",
-                    "value": {
-                      "error": "cpf_already_exists",
-                      "message": "CPF já está em uso por outro usuário"
-                    }
-                  },
-                  "email_exists": {
-                    "summary": "Email já existe",
-                    "value": {
-                      "error": "email_already_exists",
-                      "message": "Email já está em uso por outro usuário"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        } 
-      } 
-    },
-    "/users/v1/departments": {
+  "/users/v1": {
       "get": {
-        "summary": "Listar departamentos disponíveis",
-        "description": "Retorna todos os departamentos disponíveis para seleção durante o cadastro.",
-        "tags": ["departments"],
-        "responses": {
-          "200": {
-            "description": "Lista de departamentos",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": { "$ref": "#/components/schemas/Department" }
-                },
-                "example": [
-                  { "id": "TI", "name": "Tecnologia da Informação", "description": null },
-                  { "id": "RH", "name": "Recursos Humanos", "description": null },
-                  { "id": "VEN", "name": "Vendas", "description": null }
-                ]
-              }
-            }
-          }
-        }
+        "summary": "Listar usuários (ADMIN)",
+        "tags": ["users"],
+    "security": [{"bearerAuth":[]}],
+        "parameters": [
+          {"name":"status","in":"query","schema":{"type":"string","enum":["ATIVO","INATIVO"]}},
+          {"name":"departamento_id","in":"query","schema":{"type":"string"}},
+          {"name":"tipo_usuario","in":"query","schema":{"type":"string","enum":["FUNCIONARIO","INSTRUTOR","ADMIN"]}},
+          {"name":"search","in":"query","schema":{"type":"string"}},
+          {"name":"limit","in":"query","schema":{"type":"integer","default":50,"minimum":1,"maximum":200}},
+          {"name":"offset","in":"query","schema":{"type":"integer","default":0,"minimum":0}}
+        ],
+        "responses": {"200": {"description": "Lista de usuários","content":{"application/json":{"schema":{"type":"object","properties":{"items":{"type":"array","items":{"$ref":"#/components/schemas/User"}},"total":{"type":"integer"}}}}}}}
+      },
+      "post": {
+        "summary": "Criar ou atualizar perfil básico do usuário autenticado",
+        "tags": ["users"],
+  "security": [{"bearerAuth":[]}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UserUpsert"}}}},
+        "responses": {"200": {"description": "Perfil atualizado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/User"}}}}, "400": {"description": "Dados inválidos"}}
       }
     },
-    "/users/v1/{id}": { 
-      "get": { 
-        "summary": "Obter usuário por ID", 
-        "tags": ["users"], 
-        "parameters": [{ 
-          "name": "id", 
-          "in": "path", 
-          "required": true, 
-          "schema": { "type": "string", "format": "uuid" },
-          "description": "ID único do usuário"
-        }], 
-        "responses": { 
-          "200": { 
-            "description": "Dados do usuário",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/UserProfile" }
-              }
-            }
-          }, 
-          "404": { "description": "Usuário não encontrado" } 
-        } 
-      } 
+    "/users/v1/me": {
+      "get": {"summary": "Obter meu perfil","tags":["users"],"security":[{"bearerAuth":[]}],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/User"}}}},"404":{"description":"Não encontrado"}}}
     },
-    "/users/v1/{id}/xp": { 
-      "patch": { 
-        "summary": "Alterar XP do usuário", 
-        "description": "Incrementa ou decrementa o XP total do usuário.",
-        "tags": ["users"], 
-        "parameters": [{ 
-          "name": "id", 
-          "in": "path", 
-          "required": true, 
-          "schema": { "type": "string", "format": "uuid" },
-          "description": "ID único do usuário"
-        }], 
-        "requestBody": { 
-          "required": true, 
-          "content": { 
-            "application/json": { 
-              "schema": { "$ref": "#/components/schemas/XpUpdate" },
-              "example": { "delta": 100 }
-            } 
-          } 
-        }, 
-        "responses": { 
-          "200": { 
-            "description": "XP atualizado com sucesso",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": { "type": "string", "format": "uuid" },
-                    "xp_total": { "type": "integer" }
-                  }
-                }
-              }
-            }
-          }, 
-          "404": { "description": "Usuário não encontrado" } 
-        } 
-      } 
-    }
+    "/users/v1/{id}": {
+      "get": {"summary": "Obter usuário por ID","tags":["users"],"security":[{"bearerAuth":[]}],"parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"responses": {"200": {"description": "OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/User"}}}},"404": {"description": "Não encontrado"}}},
+      "patch": {"summary": "Atualização composta (ADMIN ou dono)","description":"Atualiza múltiplos campos. Para promover a INSTRUTOR enviar tipo_usuario=INSTRUTOR e opcionalmente biografia e cursos_id.","tags":["users"],"security":[{"bearerAuth":[]}],"parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/UserCompositePatch"}}}},"responses":{"200":{"description":"Usuário atualizado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/User"}}}},"400":{"description":"Dados inválidos"},"403":{"description":"Proibido"},"404":{"description":"Não encontrado"}}}
+    },
+      "/users/v1/departments": {
+        "get": {"summary":"Listar departamentos","tags":["departments"],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/Department"}}}}}}},
+        "post": {"summary":"Criar departamento (ADMIN)","tags":["departments"],"security":[{"bearerAuth":[]}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DepartmentCreate"}}}},"responses":{"201":{"description":"Criado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Department"}}}},"409":{"description":"Conflito"}}}
+      },
+      "/users/v1/departments/{codigo}": {
+        "patch": {"summary":"Atualizar departamento (ADMIN)","tags":["departments"],"security":[{"bearerAuth":[]}],"parameters":[{"name":"codigo","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DepartmentUpdate"}}}},"responses":{"200":{"description":"Atualizado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Department"}}}},"404":{"description":"Não encontrado"}}}
+      }
   },
-  "components": { 
-    "securitySchemes": { 
-      "bearerAuth": { 
-        "type": "http", 
-        "scheme": "bearer", 
-        "bearerFormat": "JWT" 
-      } 
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {"type":"http","scheme":"bearer","bearerFormat":"JWT"}
     },
     "schemas": {
-      "UserProfile": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "cpf": { "type": "string", "nullable": true },
-          "name": { "type": "string" },
-          "email": { "type": "string", "format": "email" },
-          "departamento_id": { "type": "string", "nullable": true },
-          "cargo": { "type": "string", "nullable": true },
-          "xp_total": { "type": "integer" },
-          "nivel": { "type": "string" },
-          "status": { "type": "string" }
-        }
-      },
-      "CompleteRegistration": {
-        "type": "object",
-        "required": ["nome", "cpf", "departamento_id", "cargo"],
-        "properties": {
-          "nome": { 
-            "type": "string", 
-            "minLength": 1,
-            "description": "Nome completo do funcionário"
-          },
-          "cpf": { 
-            "type": "string", 
-            "pattern": "^\\d{11}$",
-            "description": "CPF com 11 dígitos (apenas números). Não pode ser alterado após ser definido."
-          },
-          "email": { 
-            "type": "string", 
-            "format": "email",
-            "description": "Novo email (apenas para instrutores)"
-          },
-          "departamento_id": { 
-            "type": "string", 
-            "description": "Código do departamento (deve existir na tabela departamentos)"
-          },
-          "cargo": { 
-            "type": "string", 
-            "minLength": 1,
-            "description": "Cargo/função do funcionário"
-          }
-        }
-      },
-      "Department": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string", "description": "Código único do departamento" },
-          "name": { "type": "string", "description": "Nome do departamento" },
-          "description": { "type": "string", "nullable": true, "description": "Descrição opcional do departamento" }
-        }
-      },
-      "XpUpdate": {
-        "type": "object",
-        "required": ["delta"],
-        "properties": {
-          "delta": { 
-            "type": "integer", 
-            "description": "Valor a ser adicionado (positivo) ou subtraído (negativo) do XP atual"
-          }
-        }
-      },
-      "ErrorResponse": {
-        "type": "object",
-        "properties": {
-          "error": { "type": "string", "description": "Código do erro" },
-          "message": { "type": "string", "description": "Mensagem descritiva do erro" },
-          "details": { "description": "Detalhes adicionais do erro (ex: lista de erros de validação)" }
-        }
-      }
+      "User": {"type":"object","properties":{"id":{"type":"string"},"nome":{"type":"string"},"email":{"type":"string"},"status":{"type":"string","enum":["ATIVO","INATIVO"]},"tipo_usuario":{"type":"string","enum":["FUNCIONARIO","INSTRUTOR","ADMIN"]},"departamento_id":{"type":"string","nullable":true},"cargo":{"type":"string","nullable":true},"xp":{"type":"integer"},"biografia":{"type":"string","nullable":true},"cursos_id":{"type":"array","items":{"type":"string"},"nullable":true},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":"string","format":"date-time"}}},
+      "UserUpsert": {"type":"object","required":["nome"],"properties":{"nome":{"type":"string"},"departamento_id":{"type":"string","nullable":true},"cargo":{"type":"string","nullable":true}}},
+      "UserCompositePatch": {"type":"object","properties":{"nome":{"type":"string"},"departamento_id":{"type":"string","nullable":true},"cargo":{"type":"string","nullable":true},"email":{"type":"string"},"status":{"type":"string","enum":["ATIVO","INATIVO"]},"tipo_usuario":{"type":"string","enum":["FUNCIONARIO","INSTRUTOR","ADMIN"]},"biografia":{"type":"string","nullable":true},"cursos_id":{"type":"array","items":{"type":"string"}},"xp_delta":{"type":"integer"}},"minProperties":1},
+      "Department": {"type":"object","properties":{"codigo":{"type":"string"},"nome":{"type":"string"},"descricao":{"type":"string","nullable":true},"ativo":{"type":"boolean"}}},
+      "DepartmentCreate": {"type":"object","required":["codigo","nome"],"properties":{"codigo":{"type":"string"},"nome":{"type":"string"},"descricao":{"type":"string","nullable":true}}},
+      "DepartmentUpdate": {"type":"object","properties":{"nome":{"type":"string"},"descricao":{"type":"string","nullable":true},"ativo":{"type":"boolean"}},"minProperties":1}
     }
   }
 }

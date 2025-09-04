@@ -4,6 +4,7 @@ import swaggerUi from 'swagger-ui-express';
 import { logger } from './config/logger.js';
 import { loadOpenApi } from './config/openapi.js';
 import { userRouter } from './routes/userRoutes.js';
+import { authMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 export function createServer() {
@@ -19,7 +20,7 @@ export function createServer() {
     res.redirect('/docs');
   });
 
-  app.use('/users/v1', userRouter);
+  app.use('/users/v1', authMiddleware, userRouter);
   app.use(errorHandler);
   return app;
 }
