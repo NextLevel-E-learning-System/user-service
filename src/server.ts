@@ -15,6 +15,10 @@ export function createServer() {
   const openapiSpec = loadOpenApi('User Service API');
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec));
 
+  app.get('/', (_req, res) => {
+    res.redirect('/docs');
+  });
+
   app.use('/users/v1', userRouter);
   app.use(errorHandler);
   return app;
