@@ -29,7 +29,6 @@ export const patchUserCompositeSchema = z.object({
   tipo_usuario: z.enum(['FUNCIONARIO','INSTRUTOR','ADMIN']).optional(),
   biografia: z.string().max(4000).nullable().optional(),
   cursos_id: z.array(z.string()).optional(),
-  xp_delta: z.number().int().optional()
 }).refine(o => Object.keys(o).length>0, { message: 'Nenhum campo para atualizar' });
 
 // Departamentos

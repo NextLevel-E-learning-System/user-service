@@ -1,5 +1,5 @@
 import { publishDomainEvent } from '../utils/events.js';
-import { updateUser, findById, updateXp, findDepartments, checkDepartmentExists, createInstructor, updateInstructorBio, createDepartment, updateDepartment, findDepartment, listUsers, setUserStatus, updateUserEmail, updateUserType, updateUserComposite } from '../repositories/userRepository.js';
+import { updateUser, findById, findDepartments, checkDepartmentExists, createInstructor, updateInstructorBio, createDepartment, updateDepartment, findDepartment, listUsers, setUserStatus, updateUserEmail, updateUserType, updateUserComposite } from '../repositories/userRepository.js';
 import { HttpError } from '../utils/httpError.js';
 import { logger } from '../config/logger.js';
 
@@ -66,12 +66,6 @@ export async function getById(id: string) {
   const user = await findById(id);
   if (!user) throw new HttpError(404, 'not_found');
   return user;
-}
-
-export async function patchXp(id: string, delta: number) {
-  const updated = await updateXp(id, delta);
-  if (!updated) throw new HttpError(404, 'not_found');
-  return updated;
 }
 
 export async function getDepartments() {
@@ -145,7 +139,7 @@ export async function adminUpdateEmail(userId: string, newEmail: string, roles: 
 // Reset de senha agora seria responsabilidade de outro fluxo; placeholder removido.
 
 export async function compositeUpdate(userId: string, payload: {
-  nome?: string; departamento_id?: string; cargo?: string; email?: string; status?: 'ATIVO'|'INATIVO'; tipo_usuario?: string; biografia?: string | null; cursos_id?: string[]; xp_delta?: number;
+  nome?: string; departamento_id?: string; cargo?: string; email?: string; status?: 'ATIVO'|'INATIVO'; tipo_usuario?: string; biografia?: string | null; cursos_id?: string[];
 }, roles: string[], actorUserId: string) {
   // Regras:
   // - ADMIN pode tudo
@@ -185,10 +179,6 @@ export async function compositeUpdate(userId: string, payload: {
     await createInstructor(userId, payload.cursos_id || [], payload.biografia);
   } else if (payload.cursos_id) {
     await createInstructor(userId, payload.cursos_id, null);
-  }
-
-  if (typeof payload.xp_delta === 'number' && payload.xp_delta !== 0) {
-    await updateXp(userId, payload.xp_delta);
   }
 
   const updated = await findById(userId);

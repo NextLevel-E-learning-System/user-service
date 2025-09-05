@@ -30,13 +30,6 @@ export async function updateUser(userId: string, data: {
   }
 }
 
-export async function updateXp(id: string, delta: number) {
-  return withClient(async c => {
-    const r = await c.query('update user_service.funcionarios set xp_total = xp_total + $1 where id=$2 returning id, xp_total', [delta, id]);
-    return r.rows[0];
-  });
-}
-
 export async function findDepartments() {
   return withClient(async c => {
     const r = await c.query('select codigo as id, nome as name, descricao as description from user_service.departamentos order by nome');
