@@ -52,21 +52,105 @@
         }
       }
     },
-    "/users/v1/admin/dashboard": {
+    "/users/v1/dashboard": {
       "get": {
-        "summary": "Dashboard administrativo - Métricas gerais (ADMIN)",
-        "tags": ["admin"],
+        "summary": "Dashboard inteligente baseado no perfil do usuário",
+        "description": "🎯 **Dashboard único que adapta conteúdo automaticamente baseado no role:**\n\n👤 **FUNCIONARIO** (R03): XP atual, nível, badges, cursos em andamento/concluídos/disponíveis, ranking departamental, timeline de atividades, menu de operações\n\n👨‍🏫 **INSTRUTOR** (R11): Cursos que ministra com estatísticas, avaliações pendentes de correção, métricas de performance (taxa de conclusão, avaliação média)\n\n👑 **ADMIN** (R17): Métricas gerais da plataforma, usuários ativos, cursos populares, engajamento por departamento, alertas do sistema",
+        "tags": ["dashboard"],
         "security": [{"bearerAuth":[]}],
         "responses": {
           "200": {
-            "description": "Métricas: usuários ativos, cursos populares, taxa de conclusão, alertas",
+            "description": "Dashboard personalizado baseado no role do usuário",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "funcionario": {
+                    "summary": "Dashboard Funcionário",
+                    "value": {
+                      "tipo_dashboard": "funcionario",
+                      "xp_atual": 2500,
+                      "nivel_atual": 3,
+                      "proximo_badge": "Ouro",
+                      "progresso_nivel": 50,
+                      "cursos_em_andamento": [{"codigo": "JS101", "titulo": "JavaScript Básico", "progresso": 75}],
+                      "cursos_concluidos": [{"codigo": "HTML101", "titulo": "HTML Básico", "xp_oferecido": 100}],
+                      "cursos_disponiveis": [{"codigo": "CSS101", "titulo": "CSS Básico", "xp_oferecido": 150}],
+                      "menu_operacoes": [{"nome": "Catálogo de Cursos", "url": "/catalogo", "icone": "book"}]
+                    }
+                  },
+                  "instrutor": {
+                    "summary": "Dashboard Instrutor", 
+                    "value": {
+                      "tipo_dashboard": "instrutor",
+                      "cursos": [{"codigo": "JS101", "titulo": "JavaScript Básico", "inscritos": 25, "taxa_conclusao": 80, "avaliacao_media": 4.5}],
+                      "pendentes_correcao": 5,
+                      "metricas": {"taxa_conclusao_geral": 75, "avaliacao_media_geral": 4.3, "total_alunos": 150}
+                    }
+                  },
+                  "administrador": {
+                    "summary": "Dashboard Administrador",
+                    "value": {
+                      "tipo_dashboard": "administrador", 
+                      "metricas_gerais": {"usuarios_ativos": 500, "total_cursos": 45, "taxa_conclusao_geral": 78.5},
+                      "cursos_populares": [{"codigo": "JS101", "titulo": "JavaScript", "inscricoes": 200}],
+                      "alertas": [{"tipo": "Curso com baixa avaliação", "descricao": "Curso XYZ precisa de atenção", "prioridade": "alta"}]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {"description": "Não autorizado"},
+          "403": {"description": "Acesso negado"}
+        }
+      }
+    },
+    "/users/v1/dashboard/funcionario": {
+      "get": {
+        "summary": "Dashboard específico do funcionário",
+        "description": "Força exibição do dashboard de funcionário independente do role. Inclui XP, cursos, gamificação e menu de operações.",
+        "tags": ["dashboard"],
+        "security": [{"bearerAuth":[]}],
+        "responses": {
+          "200": {"description": "Dashboard do funcionário com XP, cursos e gamificação"},
+          "401": {"description": "Não autorizado"}
+        }
+      }
+    },
+    "/users/v1/dashboard/instrutor": {
+      "get": {
+        "summary": "Dashboard específico do instrutor",
+        "description": "Dashboard para instrutores com estatísticas dos cursos que ministram, avaliações pendentes e métricas de performance.",
+        "tags": ["dashboard"],
+        "security": [{"bearerAuth":[]}],
+        "responses": {
+          "200": {"description": "Dashboard do instrutor com cursos e métricas"},
+          "401": {"description": "Não autorizado"},
+          "403": {"description": "Acesso negado - requer role INSTRUTOR"}
+        }
+      }
+    },
+    "/users/v1/admin/dashboard": {
+      "get": {
+        "summary": "Dashboard administrativo (ADMIN)",
+        "description": "Dashboard completo para administradores com métricas gerais da plataforma, cursos populares, engajamento por departamento e alertas do sistema.",
+        "tags": ["dashboard", "admin"],
+        "security": [{"bearerAuth":[]}],
+        "responses": {
+          "200": {
+            "description": "Dashboard administrativo completo com métricas e alertas",
             "content": {
               "application/json": {
                 "schema": {"$ref": "#/components/schemas/AdminDashboard"}
               }
             }
           },
+          "401": {"description": "Não autorizado"},
           "403": {"description": "Acesso negado - apenas ADMIN"}
+        }
+      }
+    },
+        }
         }
       }
     },
