@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { updateUserSchema, departmentCreateSchema, departmentUpdateSchema, listUsersQuerySchema, patchUserCompositeSchema } from '../validation/userSchemas.js';
-import { getMe, getById, update, getDepartments, createDept, updateDept, listAllUsers, compositeUpdate } from '../services/userService.js';
+import { getMe, getById, update, getDepartments, createDept, updateDept, listAllUsers, compositeUpdate, listInstructors, getUserAchievements, getAdminDashboard } from '../services/userService.js';
 import { HttpError } from '../utils/httpError.js';
 
 export async function meHandler(req: Request, res: Response, next: NextFunction) {
@@ -24,9 +24,9 @@ export async function updateUserHandler(req: Request, res: Response, next: NextF
       return next(new HttpError(401, 'missing_user_context'));
     }
     
-    // Verificar se está tentando alterar email sem ser INSTRUTOR
-    if (parsed.data.email && !userRoles.includes('INSTRUTOR')) {
-      return next(new HttpError(403, 'email_change_not_allowed', 'Apenas instrutores podem alterar o email'));
+    // Verificar se está tentando alterar email sem ser ADMIN
+    if (parsed.data.email && !userRoles.includes('ADMIN')) {
+      return next(new HttpError(403, 'email_change_not_allowed', 'Apenas admin podem alterar o email'));
     }
     
     const updatedUser = await update(userId, parsed.data);
@@ -87,5 +87,33 @@ export async function compositeUpdateHandler(req: Request, res: Response, next: 
     const actorId = req.header('x-user-id') || '';
     const data = await compositeUpdate(req.params.id, parsed.data, roles, actorId);
     res.json(data);
+  } catch (err) { next(err); }
+}
+
+// ========== NOVOS CONTROLADORES ==========
+
+export async function listInstructorsHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const instructors = await listInstructors();
+    res.json(instructors);
+  } catch (err) { next(err); }
+}
+
+export async function getUserAchievementsHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.params.id;
+    const achievements = await getUserAchievements(userId);
+    res.json(achievements);
+  } catch (err) { next(err); }
+}
+
+export async function getAdminDashboardHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const roles = req.header('x-user-roles')?.split(',') || [];
+    if (!roles.includes('ADMIN')) {
+      return next(new HttpError(403, 'admin_required'));
+    }
+    const dashboard = await getAdminDashboard();
+    res.json(dashboard);
   } catch (err) { next(err); }
 }

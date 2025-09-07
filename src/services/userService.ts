@@ -1,5 +1,5 @@
 import { publishDomainEvent } from '../utils/events.js';
-import { updateUser, findById, findDepartments, checkDepartmentExists, createInstructor, updateInstructorBio, createDepartment, updateDepartment, findDepartment, listUsers, setUserStatus, updateUserEmail, updateUserType, updateUserComposite } from '../repositories/userRepository.js';
+import { updateUser, findById, findDepartments, checkDepartmentExists, createInstructor, updateInstructorBio, createDepartment, updateDepartment, findDepartment, listUsers, setUserStatus, updateUserEmail, updateUserType, updateUserComposite, findInstructors, findUserAchievements, getAdminDashboardData } from '../repositories/userRepository.js';
 import { HttpError } from '../utils/httpError.js';
 import { logger } from '../config/logger.js';
 
@@ -48,12 +48,13 @@ export async function update(userId: string, data: {
     const updatedUser = await findById(userId);
     return updatedUser;
     
-  } catch (err: any) {
-    if (err.code === '23505') {
-      if (err.constraint?.includes('cpf')) {
+  } catch (err: unknown) {
+    const error = err as { code?: string; constraint?: string };
+    if (error.code === '23505') {
+      if (error.constraint?.includes('cpf')) {
         throw new HttpError(409, 'cpf_already_exists', 'CPF já está em uso por outro usuário');
       }
-      if (err.constraint?.includes('email')) {
+      if (error.constraint?.includes('email')) {
         throw new HttpError(409, 'email_already_exists', 'Email já está em uso por outro usuário');
       }
       throw new HttpError(409, 'duplicate', 'Dados duplicados');
@@ -184,4 +185,37 @@ export async function compositeUpdate(userId: string, payload: {
   const updated = await findById(userId);
   publishDomainEvent('users.v1.UserCompositeUpdated', { userId, changes: Object.keys(payload) }).catch(err => logger.error({ err }, 'publish_user_composite_updated_failed'));
   return updated;
+}
+
+// ========== NOVAS FUNÇÕES ==========
+
+export async function listInstructors() {
+  return await findInstructors();
+}
+
+export async function getUserAchievements(userId: string) {
+  return await findUserAchievements(userId);
+}
+
+export async function getAdminDashboard() {
+  const dashboardData = await getAdminDashboardData();
+  
+  return {
+    metricas_gerais: {
+      usuarios_ativos: parseInt(dashboardData.userStats.usuarios_ativos) || 0,
+      usuarios_inativos: parseInt(dashboardData.userStats.usuarios_inativos) || 0,
+      total_funcionarios: parseInt(dashboardData.userStats.total_funcionarios) || 0,
+      total_instrutores: parseInt(dashboardData.userStats.total_instrutores) || 0,
+      departamentos_ativos: dashboardData.departamentos_ativos
+    },
+    engajamento_por_departamento: dashboardData.engajamento_por_departamento.map(dept => ({
+      departamento: dept.departamento,
+      usuarios_ativos: parseInt(dept.usuarios_ativos) || 0,
+      taxa_conclusao: 0 // TODO: Integrar com progress-service para calcular taxa real
+    })),
+    // TODO: Integrar com outros microserviços para dados completos
+    cursos_populares: [], // Integrar com course-service
+    taxa_conclusao_geral: 0, // Integrar com progress-service
+    alertas: [] // Implementar lógica de alertas baseada em dados reais
+  };
 }

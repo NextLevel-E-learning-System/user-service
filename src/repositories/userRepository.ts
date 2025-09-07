@@ -47,7 +47,7 @@ export async function checkDepartmentExists(codigo: string) {
 export async function listUsers(params: { departamento?: string; status?: string; search?: string; limit: number; offset: number; }) {
   return withClient(async c => {
     const conds: string[] = [];
-    const values: any[] = [];
+    const values: (string | number)[] = [];
     let idx = 1;
     if (params.departamento) { conds.push(`f.departamento_id = $${idx++}`); values.push(params.departamento); }
     if (params.status) { conds.push(`f.status = $${idx++}`); values.push(params.status); }
@@ -63,7 +63,7 @@ export async function listUsers(params: { departamento?: string; status?: string
     values.push(params.limit, params.offset);
     const r = await c.query(sql, values);
     const total = r.rows[0]?.total ? Number(r.rows[0].total) : 0;
-    return { items: r.rows.map(({ total, ...rest }) => rest), total };
+    return { items: r.rows.map(({ total: _total, ...rest }) => rest), total };
   });
 }
 
@@ -75,7 +75,7 @@ export async function createDepartment(data: { codigo: string; nome: string; des
 
 export async function updateDepartment(codigo: string, data: { nome?: string; descricao?: string | null; gestor_id?: string | null; }) {
   return withClient(async c => {
-    const sets: string[] = []; const vals: any[] = []; let i=1;
+    const sets: string[] = []; const vals: (string | null)[] = []; let i=1;
     if (data.nome !== undefined) { sets.push(`nome=$${i}`); vals.push(data.nome); i++; }
     if (data.descricao !== undefined) { sets.push(`descricao=$${i}`); vals.push(data.descricao); i++; }
     if (data.gestor_id !== undefined) { sets.push(`gestor_id=$${i}`); vals.push(data.gestor_id); i++; }
@@ -124,7 +124,7 @@ export async function updateUserType(userId: string, tipo: string) {
 
 export async function updateUserComposite(userId: string, data: { nome?: string; departamento_id?: string; cargo?: string; email?: string; status?: string; }) {
   return withClient(async c => {
-    const sets: string[] = []; const vals: any[] = []; let i=1;
+    const sets: string[] = []; const vals: (string)[] = []; let i=1;
     if (data.nome !== undefined) { sets.push(`nome=$${i}`); vals.push(data.nome); i++; }
     if (data.departamento_id !== undefined) { sets.push(`departamento_id=$${i}`); vals.push(data.departamento_id); i++; }
     if (data.cargo !== undefined) { sets.push(`cargo=$${i}`); vals.push(data.cargo); i++; }
@@ -133,6 +133,84 @@ export async function updateUserComposite(userId: string, data: { nome?: string;
     if (!sets.length) return;
     vals.push(userId);
     await c.query(`update user_service.funcionarios set ${sets.join(', ')} where id=$${i}`, vals);
+  });
+}
+
+// ========== NOVAS FUNÇÕES PARA DADOS REAIS ==========
+
+export async function findInstructors() {
+  return withClient(async c => {
+    const r = await c.query(`
+      select 
+        f.id, f.nome, f.email, f.departamento_id, f.cargo,
+        i.biografia, i.curso_id, i.avaliacao_media,
+        d.nome as departamento_nome
+      from user_service.funcionarios f
+      inner join user_service.instrutores i on i.funcionario_id = f.id
+      left join user_service.departamentos d on d.codigo = f.departamento_id
+      where f.status = 'ATIVO'
+      order by f.nome
+    `);
+    return r.rows;
+  });
+}
+
+export async function findUserAchievements(userId: string) {
+  return withClient(async c => {
+    const r = await c.query(`
+      select 
+        c.id, c.tipo_conquista, c.data_conquista, c.detalhes,
+        f.xp_total, f.nivel
+      from user_service.conquistas c
+      inner join user_service.funcionarios f on f.id = c.funcionario_id
+      where c.funcionario_id = $1
+      order by c.data_conquista desc
+    `, [userId]);
+    
+    const conquistas = r.rows;
+    const userInfo = conquistas[0] || await c.query('select xp_total, nivel from user_service.funcionarios where id = $1', [userId]).then(r => r.rows[0]);
+    
+    return {
+      funcionario_id: userId,
+      conquistas: conquistas.map(({ xp_total: _xp, nivel: _nivel, ...conquista }) => conquista),
+      total_xp: userInfo?.xp_total || 0,
+      nivel_atual: userInfo?.nivel || 1
+    };
+  });
+}
+
+export async function getAdminDashboardData() {
+  return withClient(async c => {
+    // Métricas de usuários
+    const userStats = await c.query(`
+      select 
+        count(*) filter (where f.status = 'ATIVO') as usuarios_ativos,
+        count(*) filter (where f.status = 'INATIVO') as usuarios_inativos,
+        count(*) filter (where f.status = 'ATIVO' and u.tipo_usuario = 'FUNCIONARIO') as total_funcionarios,
+        count(*) filter (where f.status = 'ATIVO' and u.tipo_usuario = 'INSTRUTOR') as total_instrutores
+      from user_service.funcionarios f
+      left join auth_service.usuarios u on u.id = f.id
+    `);
+
+    // Count departamentos
+    const deptStats = await c.query('select count(*) as departamentos_ativos from user_service.departamentos');
+
+    // Engajamento por departamento
+    const deptEngagement = await c.query(`
+      select 
+        d.nome as departamento,
+        count(f.id) filter (where f.status = 'ATIVO') as usuarios_ativos
+      from user_service.departamentos d
+      left join user_service.funcionarios f on f.departamento_id = d.codigo
+      group by d.codigo, d.nome
+      order by usuarios_ativos desc
+    `);
+
+    return {
+      userStats: userStats.rows[0],
+      departamentos_ativos: parseInt(deptStats.rows[0].departamentos_ativos),
+      engajamento_por_departamento: deptEngagement.rows
+    };
   });
 }
 

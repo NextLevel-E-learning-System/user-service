@@ -2,15 +2,15 @@
   "openapi": "3.0.3",
   "info": {
     "title": "User Service API",
-    "version": "1.3.0",
-    "description": "API simplificada para gestão de usuários e departamentos. Rotas legadas removidas em favor de PATCH composto."
+    "version": "1.5.0",
+    "description": "API completa para gestão de usuários, instrutores, departamentos e conquistas. Inclui dashboard administrativo, sistema automático de XP/níveis e funcionalidades completas de CRUD."
   },
   "paths": {
-  "/users/v1": {
+    "/users/v1": {
       "get": {
         "summary": "Listar usuários (ADMIN)",
         "tags": ["users"],
-    "security": [{"bearerAuth":[]}],
+        "security": [{"bearerAuth":[]}],
         "parameters": [
           {"name":"status","in":"query","schema":{"type":"string","enum":["ATIVO","INATIVO"]}},
           {"name":"departamento_id","in":"query","schema":{"type":"string"}},
@@ -22,9 +22,9 @@
         "responses": {"200": {"description": "Lista de usuários","content":{"application/json":{"schema":{"type":"object","properties":{"items":{"type":"array","items":{"$ref":"#/components/schemas/User"}},"total":{"type":"integer"}}}}}}}
       },
       "post": {
-        "summary": "Criar ou atualizar perfil básico do usuário autenticado",
+        "summary": "Completar cadastro ou atualizar perfil básico",
         "tags": ["users"],
-  "security": [{"bearerAuth":[]}],
+        "security": [{"bearerAuth":[]}],
         "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UserUpsert"}}}},
         "responses": {"200": {"description": "Perfil atualizado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/User"}}}}, "400": {"description": "Dados inválidos"}}
       }
@@ -32,17 +32,74 @@
     "/users/v1/me": {
       "get": {"summary": "Obter meu perfil","tags":["users"],"security":[{"bearerAuth":[]}],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/User"}}}},"404":{"description":"Não encontrado"}}}
     },
+    "/users/v1/instructors": {
+      "get": {
+        "summary": "Listar instrutores ativos",
+        "tags": ["instructors"],
+        "security": [{"bearerAuth":[]}],
+        "responses": {
+          "200": {
+            "description": "Lista de instrutores com especialidades e avaliações",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/Instructor"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/v1/admin/dashboard": {
+      "get": {
+        "summary": "Dashboard administrativo - Métricas gerais (ADMIN)",
+        "tags": ["admin"],
+        "security": [{"bearerAuth":[]}],
+        "responses": {
+          "200": {
+            "description": "Métricas: usuários ativos, cursos populares, taxa de conclusão, alertas",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/AdminDashboard"}
+              }
+            }
+          },
+          "403": {"description": "Acesso negado - apenas ADMIN"}
+        }
+      }
+    },
     "/users/v1/{id}": {
       "get": {"summary": "Obter usuário por ID","tags":["users"],"security":[{"bearerAuth":[]}],"parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"responses": {"200": {"description": "OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/User"}}}},"404": {"description": "Não encontrado"}}},
       "patch": {"summary": "Atualização composta (ADMIN ou dono)","description":"Atualiza múltiplos campos. Para promover a INSTRUTOR enviar tipo_usuario=INSTRUTOR e opcionalmente biografia e cursos_id.","tags":["users"],"security":[{"bearerAuth":[]}],"parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/UserCompositePatch"}}}},"responses":{"200":{"description":"Usuário atualizado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/User"}}}},"400":{"description":"Dados inválidos"},"403":{"description":"Proibido"},"404":{"description":"Não encontrado"}}}
     },
-      "/users/v1/departments": {
-        "get": {"summary":"Listar departamentos","tags":["departments"],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/Department"}}}}}}},
-        "post": {"summary":"Criar departamento (ADMIN)","tags":["departments"],"security":[{"bearerAuth":[]}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DepartmentCreate"}}}},"responses":{"201":{"description":"Criado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Department"}}}},"409":{"description":"Conflito"}}}
-      },
-      "/users/v1/departments/{codigo}": {
-        "patch": {"summary":"Atualizar departamento (ADMIN)","tags":["departments"],"security":[{"bearerAuth":[]}],"parameters":[{"name":"codigo","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DepartmentUpdate"}}}},"responses":{"200":{"description":"Atualizado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Department"}}}},"404":{"description":"Não encontrado"}}}
+    "/users/v1/{id}/achievements": {
+      "get": {
+        "summary": "Obter conquistas do usuário",
+        "tags": ["achievements"],
+        "security": [{"bearerAuth":[]}],
+        "parameters": [{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],
+        "responses": {
+          "200": {
+            "description": "Conquistas do usuário",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/UserAchievements"}
+              }
+            }
+          },
+          "404": {"description": "Usuário não encontrado"}
+        }
       }
+    },
+    "/users/v1/departments": {
+      "get": {"summary":"Listar departamentos","tags":["departments"],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/Department"}}}}}}},
+      "post": {"summary":"Criar departamento (ADMIN)","tags":["departments"],"security":[{"bearerAuth":[]}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DepartmentCreate"}}}},"responses":{"201":{"description":"Criado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Department"}}}},"409":{"description":"Conflito"}}}
+    },
+    "/users/v1/departments/{codigo}": {
+      "patch": {"summary":"Atualizar departamento (ADMIN)","tags":["departments"],"security":[{"bearerAuth":[]}],"parameters":[{"name":"codigo","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DepartmentUpdate"}}}},"responses":{"200":{"description":"Atualizado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Department"}}}},"404":{"description":"Não encontrado"}}}
+    }
   },
   "components": {
     "securitySchemes": {
@@ -52,6 +109,88 @@
       "User": {"type":"object","properties":{"id":{"type":"string"},"nome":{"type":"string"},"email":{"type":"string"},"status":{"type":"string","enum":["ATIVO","INATIVO"]},"tipo_usuario":{"type":"string","enum":["FUNCIONARIO","INSTRUTOR","ADMIN"]},"departamento_id":{"type":"string","nullable":true},"cargo":{"type":"string","nullable":true},"xp":{"type":"integer"},"biografia":{"type":"string","nullable":true},"cursos_id":{"type":"array","items":{"type":"string"},"nullable":true},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":"string","format":"date-time"}}},
       "UserUpsert": {"type":"object","required":["nome"],"properties":{"nome":{"type":"string"},"departamento_id":{"type":"string","nullable":true},"cargo":{"type":"string","nullable":true}}},
       "UserCompositePatch": {"type":"object","properties":{"nome":{"type":"string"},"departamento_id":{"type":"string","nullable":true},"cargo":{"type":"string","nullable":true},"email":{"type":"string"},"status":{"type":"string","enum":["ATIVO","INATIVO"]},"tipo_usuario":{"type":"string","enum":["FUNCIONARIO","INSTRUTOR","ADMIN"]},"biografia":{"type":"string","nullable":true},"cursos_id":{"type":"array","items":{"type":"string"}}},"minProperties":1},
+      "Instructor": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "nome": {"type": "string"},
+          "email": {"type": "string"},
+          "biografia": {"type": "string", "nullable": true},
+          "curso_id": {"type": "array", "items": {"type": "string"}},
+          "avaliacao_media": {"type": "number", "format": "float"},
+          "departamento_id": {"type": "string", "nullable": true},
+          "departamento_nome": {"type": "string", "nullable": true}
+        }
+      },
+      "UserAchievements": {
+        "type": "object",
+        "properties": {
+          "funcionario_id": {"type": "string"},
+          "conquistas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string"},
+                "tipo_conquista": {"type": "string"},
+                "data_conquista": {"type": "string", "format": "date-time"},
+                "detalhes": {"type": "object"}
+              }
+            }
+          },
+          "total_xp": {"type": "integer"},
+          "nivel_atual": {"type": "integer"}
+        }
+      },
+      "AdminDashboard": {
+        "type": "object",
+        "properties": {
+          "metricas_gerais": {
+            "type": "object",
+            "properties": {
+              "usuarios_ativos": {"type": "integer"},
+              "usuarios_inativos": {"type": "integer"},
+              "total_funcionarios": {"type": "integer"},
+              "total_instrutores": {"type": "integer"},
+              "departamentos_ativos": {"type": "integer"}
+            }
+          },
+          "engajamento_por_departamento": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "departamento": {"type": "string"},
+                "usuarios_ativos": {"type": "integer"},
+                "taxa_conclusao": {"type": "number", "format": "float"}
+              }
+            }
+          },
+          "cursos_populares": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "codigo": {"type": "string"},
+                "titulo": {"type": "string"},
+                "inscricoes": {"type": "integer"}
+              }
+            }
+          },
+          "taxa_conclusao_geral": {"type": "number", "format": "float"},
+          "alertas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tipo": {"type": "string"},
+                "mensagem": {"type": "string"},
+                "prioridade": {"type": "string", "enum": ["baixa", "media", "alta"]}
+              }
+            }
+          }
+        }
+      },
       "Department": {"type":"object","properties":{"codigo":{"type":"string"},"nome":{"type":"string"},"descricao":{"type":"string","nullable":true},"ativo":{"type":"boolean"}}},
       "DepartmentCreate": {"type":"object","required":["codigo","nome"],"properties":{"codigo":{"type":"string"},"nome":{"type":"string"},"descricao":{"type":"string","nullable":true}}},
       "DepartmentUpdate": {"type":"object","properties":{"nome":{"type":"string"},"descricao":{"type":"string","nullable":true},"ativo":{"type":"boolean"}},"minProperties":1}
