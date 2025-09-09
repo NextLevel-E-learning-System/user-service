@@ -1,5 +1,5 @@
 import { publishDomainEvent } from '../utils/events.js';
-import { updateUser, findById, findDepartments, checkDepartmentExists, createInstructor, updateInstructorBio, createDepartment, updateDepartment, findDepartment, listUsers, updateUserComposite, findInstructors, findUserAchievements, getAdminDashboardData } from '../repositories/userRepository.js';
+import { findById, findDepartments, checkDepartmentExists, createInstructor, updateInstructorBio, createDepartment, updateDepartment, findDepartment, listUsers, updateUserComposite, findInstructors, findUserAchievements } from '../repositories/userRepository.js';
 import { HttpError } from '../utils/httpError.js';
 import { logger } from '../config/logger.js';
 

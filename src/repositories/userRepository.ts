@@ -183,38 +183,3 @@ export async function findUserAchievements(userId: string) {
   });
 }
 
-export async function getAdminDashboardData() {
-  return withClient(async c => {
-    // Métricas de usuários
-    const userStats = await c.query(`
-      select 
-        count(*) filter (where f.status = 'ATIVO') as usuarios_ativos,
-        count(*) filter (where f.status = 'INATIVO') as usuarios_inativos,
-        count(*) filter (where f.status = 'ATIVO' and u.tipo_usuario = 'FUNCIONARIO') as total_funcionarios,
-        count(*) filter (where f.status = 'ATIVO' and u.tipo_usuario = 'INSTRUTOR') as total_instrutores
-      from user_service.funcionarios f
-      left join auth_service.usuarios u on u.id = f.id
-    `);
-
-    // Count departamentos
-    const deptStats = await c.query('select count(*) as departamentos_ativos from user_service.departamentos');
-
-    // Engajamento por departamento
-    const deptEngagement = await c.query(`
-      select 
-        d.nome as departamento,
-        count(f.id) filter (where f.status = 'ATIVO') as usuarios_ativos
-      from user_service.departamentos d
-      left join user_service.funcionarios f on f.departamento_id = d.codigo
-      group by d.codigo, d.nome
-      order by usuarios_ativos desc
-    `);
-
-    return {
-      userStats: userStats.rows[0],
-      departamentos_ativos: parseInt(deptStats.rows[0].departamentos_ativos),
-      engajamento_por_departamento: deptEngagement.rows
-    };
-  });
-}
-
