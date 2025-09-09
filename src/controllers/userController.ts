@@ -1,13 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { updateUserSchema, departmentCreateSchema, departmentUpdateSchema, listUsersQuerySchema } from '../validation/userSchemas.js';
-import { getMe, getById, getDepartments, createDept, updateDept, listAllUsers, listInstructors, getUserAchievements } from '../services/userService.js';
+import { getById, getDepartments, createDept, updateDept, listAllUsers, listInstructors, getUserAchievements } from '../services/userService.js';
 import { updateInstructorBio, updateUserComposite } from '../repositories/userRepository.js';
 import { HttpError } from '../utils/httpError.js';
 
 export async function meHandler(req: Request, res: Response, next: NextFunction) {
   try {
     const userId = req.header('x-user-id');
-    const me = await getMe(userId || '');
+    const me = await getById(userId || '');
     res.json(me);
   } catch (err) { next(err); }
 }
