@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { updateUserSchema, departmentCreateSchema, departmentUpdateSchema, listUsersQuerySchema, patchUserCompositeSchema } from '../validation/userSchemas.js';
-import { getMe, getById, update, getDepartments, createDept, updateDept, listAllUsers, compositeUpdate, listInstructors, getUserAchievements, getAdminDashboard } from '../services/userService.js';
+import { updateUserSchema, departmentCreateSchema, departmentUpdateSchema, listUsersQuerySchema } from '../validation/userSchemas.js';
+import { getMe, getById, getDepartments, createDept, updateDept, listAllUsers, listInstructors, getUserAchievements } from '../services/userService.js';
+import { updateInstructorBio, updateUserComposite } from '../repositories/userRepository.js';
 import { HttpError } from '../utils/httpError.js';
 
 export async function meHandler(req: Request, res: Response, next: NextFunction) {
@@ -14,23 +15,41 @@ export async function meHandler(req: Request, res: Response, next: NextFunction)
 export async function updateUserHandler(req: Request, res: Response, next: NextFunction) {
   const parsed = updateUserSchema.safeParse(req.body);
   if (!parsed.success) return next(new HttpError(400, 'validation_error', parsed.error.issues));
-  
+
   try {
-    // O userId vem do token JWT (x-user-id) - é o mesmo ID criado durante auto-cadastro
     const userId = req.header('x-user-id');
     const userRoles = req.header('x-user-roles')?.split(',') || [];
-    
     if (!userId) {
       return next(new HttpError(401, 'missing_user_context'));
     }
-    
-    // Verificar se está tentando alterar email sem ser ADMIN
-    if (parsed.data.email && !userRoles.includes('ADMIN')) {
-      return next(new HttpError(403, 'email_change_not_allowed', 'Apenas admin podem alterar o email'));
+
+    // ADMIN: pode alterar qualquer campo permitido via updateUserComposite
+    if (userRoles.includes('ADMIN')) {
+      const allowedFields = ['nome', 'cpf', 'email', 'departamento_id', 'cargo', 'status', 'tipo_usuario'];
+      const updateData: Record<string, unknown> = {};
+      for (const key of allowedFields) {
+        if (key in parsed.data) {
+          updateData[key] = parsed.data[key as keyof typeof parsed.data];
+        }
+      }
+      if (Object.keys(updateData).length === 0) {
+        return next(new HttpError(400, 'no_fields', 'Nenhum campo permitido para atualizar'));
+      }
+      await updateUserComposite(userId, updateData);
+      return res.status(200).json({ success: true });
     }
-    
-    const updatedUser = await update(userId, parsed.data);
-    res.status(200).json(updatedUser);
+
+    // INSTRUTOR: pode alterar apenas biografia
+    if (userRoles.includes('INSTRUTOR')) {
+      if ('biografia' in parsed.data && typeof parsed.data.biografia === 'string') {
+        await updateInstructorBio(userId, parsed.data.biografia);
+        return res.status(200).json({ success: true });
+      }
+      return next(new HttpError(403, 'forbidden_fields', 'Instrutor só pode editar a biografia'));
+    }
+
+    // FUNCIONARIO: não pode editar nada
+    return next(new HttpError(403, 'forbidden', 'Funcionário não pode editar nenhum campo'));
   } catch (err) { next(err); }
 } 
 
@@ -78,18 +97,6 @@ export async function listUsersHandler(req: Request, res: Response, next: NextFu
   } catch (err) { next(err); }
 }
 
-
-export async function compositeUpdateHandler(req: Request, res: Response, next: NextFunction) {
-  const parsed = patchUserCompositeSchema.safeParse(req.body);
-  if (!parsed.success) return next(new HttpError(400, 'validation_error', parsed.error.issues));
-  try {
-    const roles = req.header('x-user-roles')?.split(',') || [];
-    const actorId = req.header('x-user-id') || '';
-    const data = await compositeUpdate(req.params.id, parsed.data, roles, actorId);
-    res.json(data);
-  } catch (err) { next(err); }
-}
-
 // ========== NOVOS CONTROLADORES ==========
 
 export async function listInstructorsHandler(req: Request, res: Response, next: NextFunction) {
@@ -104,16 +111,5 @@ export async function getUserAchievementsHandler(req: Request, res: Response, ne
     const userId = req.params.id;
     const achievements = await getUserAchievements(userId);
     res.json(achievements);
-  } catch (err) { next(err); }
-}
-
-export async function getAdminDashboardHandler(req: Request, res: Response, next: NextFunction) {
-  try {
-    const roles = req.header('x-user-roles')?.split(',') || [];
-    if (!roles.includes('ADMIN')) {
-      return next(new HttpError(403, 'admin_required'));
-    }
-    const dashboard = await getAdminDashboard();
-    res.json(dashboard);
   } catch (err) { next(err); }
 }

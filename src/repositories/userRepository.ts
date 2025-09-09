@@ -122,7 +122,7 @@ export async function updateUserType(userId: string, tipo: string) {
   });
 }
 
-export async function updateUserComposite(userId: string, data: { nome?: string; departamento_id?: string; cargo?: string; email?: string; status?: string; }) {
+export async function updateUserComposite(userId: string, data: { nome?: string; departamento_id?: string; cargo?: string; email?: string; status?: string; tipo_usuario?: string; }) {
   return withClient(async c => {
     const sets: string[] = []; const vals: (string)[] = []; let i=1;
     if (data.nome !== undefined) { sets.push(`nome=$${i}`); vals.push(data.nome); i++; }
@@ -130,9 +130,13 @@ export async function updateUserComposite(userId: string, data: { nome?: string;
     if (data.cargo !== undefined) { sets.push(`cargo=$${i}`); vals.push(data.cargo); i++; }
     if (data.email !== undefined) { sets.push(`email=$${i}`); vals.push(data.email); i++; }
     if (data.status !== undefined) { sets.push(`status=$${i}`); vals.push(data.status); i++; }
-    if (!sets.length) return;
-    vals.push(userId);
-    await c.query(`update user_service.funcionarios set ${sets.join(', ')} where id=$${i}`, vals);
+    if (sets.length) {
+      vals.push(userId);
+      await c.query(`update user_service.funcionarios set ${sets.join(', ')} where id=$${i}`, vals);
+    }
+    if (data.tipo_usuario !== undefined) {
+      await c.query('update auth_service.usuarios set tipo_usuario=$1 where id=$2', [data.tipo_usuario, userId]);
+    }
   });
 }
 

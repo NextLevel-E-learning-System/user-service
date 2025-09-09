@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { meHandler, updateUserHandler, getUserHandler, getDepartmentsHandler, createDepartmentHandler, updateDepartmentHandler, listUsersHandler, compositeUpdateHandler, listInstructorsHandler, getUserAchievementsHandler } from '../controllers/userController.js';
+import { meHandler, updateUserHandler, getUserHandler, getDepartmentsHandler, createDepartmentHandler, updateDepartmentHandler, listUsersHandler, listInstructorsHandler, getUserAchievementsHandler } from '../controllers/userController.js';
 import { getDashboardHandler } from '../controllers/dashboardController.js';
 
 export const userRouter = Router();
@@ -16,9 +16,7 @@ userRouter.patch('/departments/:codigo', updateDepartmentHandler); // Atualizar 
 // User routes
 userRouter.get('/me', meHandler); // Perfil próprio
 userRouter.get('/', listUsersHandler); // Listar usuários (admin)
-userRouter.post('/', updateUserHandler); // Completar cadastro / update básico
 
-// User specific routes (parametrizadas por último)
 userRouter.get('/:id/achievements', getUserAchievementsHandler); // Conquistas do usuário
 userRouter.get('/:id', getUserHandler); // Buscar usuário por ID
-userRouter.patch('/:id', compositeUpdateHandler); // Update completo (admin ou próprio)
+userRouter.patch('/:id', updateUserHandler); // Update completo (admin, instrutor ou próprio)
