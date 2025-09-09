@@ -14,11 +14,6 @@ export async function getDepartments() {
   return await findDepartments();
 }
 
-export async function registerInstructor(data: { funcionario_id: string; cursos_id: string[]; biografia: string | null; }, _actorRoles: string[]) {
-// Função mantida apenas para compatibilidade, agora delega para compositeUpdate
-return compositeUpdate(data.funcionario_id, { tipo_usuario: 'INSTRUTOR', cursos_id: data.cursos_id, biografia: data.biografia }, ['ADMIN'], data.funcionario_id);
-}
-
 export async function changeInstructorBio(funcionario_id: string, biografia: string | null, actorUserId: string) {
   if (funcionario_id !== actorUserId) throw new HttpError(403, 'cannot_edit_other_instructor_bio');
   await updateInstructorBio(funcionario_id, biografia);
@@ -100,12 +95,6 @@ if (payload.tipo_usuario && isAdmin) {
   const updated = await findUsers({ id: userId });
   publishDomainEvent('users.v1.UserCompositeUpdated', { userId, changes: Object.keys(payload) }).catch(err => logger.error({ err }, 'publish_user_composite_updated_failed'));
   return updated;
-}
-
-// ========== NOVAS FUNÇÕES ==========
-
-export async function listInstructors() {
-  return await findUsers({ tipo_usuario: 'INSTRUTOR' });
 }
 
 export async function getUserAchievements(userId: string) {
