@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { updateUserSchema, departmentCreateSchema, departmentUpdateSchema, listUsersQuerySchema } from '../validation/userSchemas.js';
-import { getById, getDepartments, createDept, updateDept, listAllUsers, listInstructors, getUserAchievements } from '../services/userService.js';
+import { getById, getDepartments, createDept, updateDept, listAllUsers, getUserAchievements } from '../services/userService.js';
 import { updateInstructorBio, updateUserComposite } from '../repositories/userRepository.js';
 import { HttpError } from '../utils/httpError.js';
 
@@ -97,14 +97,6 @@ export async function listUsersHandler(req: Request, res: Response, next: NextFu
   } catch (err) { next(err); }
 }
 
-// ========== NOVOS CONTROLADORES ==========
-
-export async function listInstructorsHandler(req: Request, res: Response, next: NextFunction) {
-  try {
-    const instructors = await listInstructors();
-    res.json(instructors);
-  } catch (err) { next(err); }
-}
 
 export async function getUserAchievementsHandler(req: Request, res: Response, next: NextFunction) {
   try {

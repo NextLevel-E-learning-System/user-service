@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { meHandler, updateUserHandler, getUserHandler, getDepartmentsHandler, createDepartmentHandler, updateDepartmentHandler, listUsersHandler, listInstructorsHandler, getUserAchievementsHandler } from '../controllers/userController.js';
+import { meHandler, updateUserHandler, getUserHandler, getDepartmentsHandler, createDepartmentHandler, updateDepartmentHandler, listUsersHandler, getUserAchievementsHandler } from '../controllers/userController.js';
 import { getDashboardHandler } from '../controllers/dashboardController.js';
 
 export const userRouter = Router();
@@ -8,7 +8,6 @@ export const userRouter = Router();
 userRouter.get('/dashboard', getDashboardHandler); // Dashboard inteligente baseado no role
 
 // Resource routes
-userRouter.get('/instructors', listInstructorsHandler); // Lista instrutores
 userRouter.get('/departments', getDepartmentsHandler); // Lista departamentos
 userRouter.post('/departments', createDepartmentHandler); // Criar departamento (admin)
 userRouter.patch('/departments/:codigo', updateDepartmentHandler); // Atualizar departamento (admin)
