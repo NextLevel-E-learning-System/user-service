@@ -32,26 +32,6 @@
     "/users/v1/me": {
       "get": {"summary": "Obter meu perfil","tags":["users"],"security":[{"bearerAuth":[]}],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/User"}}}},"404":{"description":"Não encontrado"}}}
     },
-    "/users/v1/instructors": {
-      "get": {
-        "summary": "Listar instrutores ativos",
-        "tags": ["instructors"],
-        "security": [{"bearerAuth":[]}],
-        "responses": {
-          "200": {
-            "description": "Lista de instrutores com especialidades e avaliações",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {"$ref": "#/components/schemas/Instructor"}
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/users/v1/dashboard": {
       "get": {
         "summary": "Dashboard inteligente baseado no perfil do usuário",
@@ -133,6 +113,13 @@
     },
     "/users/v1/departments/{codigo}": {
       "patch": {"summary":"Atualizar departamento (ADMIN)","tags":["departments"],"security":[{"bearerAuth":[]}],"parameters":[{"name":"codigo","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DepartmentUpdate"}}}},"responses":{"200":{"description":"Atualizado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Department"}}}},"404":{"description":"Não encontrado"}}}
+    },
+    "/users/v1/cargos": {
+      "get": {"summary":"Listar cargos","tags":["cargos"],"parameters":[{"name":"search","in":"query","schema":{"type":"string"}},{"name":"limit","in":"query","schema":{"type":"integer","default":50}},{"name":"offset","in":"query","schema":{"type":"integer","default":0}}],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"type":"object","properties":{"items":{"type":"array","items":{"$ref":"#/components/schemas/Cargo"}},"total":{"type":"integer"}}}}}}}},
+      "post": {"summary":"Criar cargo (ADMIN)","tags":["cargos"],"security":[{"bearerAuth":[]}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CargoCreate"}}}},"responses":{"201":{"description":"Criado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Cargo"}}}},"400":{"description":"Dados inválidos"}}}
+    },
+    "/users/v1/cargos/{id}": {
+      "patch": {"summary":"Atualizar cargo (ADMIN)","tags":["cargos"],"security":[{"bearerAuth":[]}],"parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CargoUpdate"}}}},"responses":{"200":{"description":"Atualizado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Cargo"}}}},"404":{"description":"Não encontrado"}}}
     }
   },
   "components": {
@@ -176,58 +163,12 @@
           "nivel_atual": {"type": "integer"}
         }
       },
-      "AdminDashboard": {
-        "type": "object",
-        "properties": {
-          "metricas_gerais": {
-            "type": "object",
-            "properties": {
-              "usuarios_ativos": {"type": "integer"},
-              "usuarios_inativos": {"type": "integer"},
-              "total_funcionarios": {"type": "integer"},
-              "total_instrutores": {"type": "integer"},
-              "departamentos_ativos": {"type": "integer"}
-            }
-          },
-          "engajamento_por_departamento": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "departamento": {"type": "string"},
-                "usuarios_ativos": {"type": "integer"},
-                "taxa_conclusao": {"type": "number", "format": "float"}
-              }
-            }
-          },
-          "cursos_populares": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "codigo": {"type": "string"},
-                "titulo": {"type": "string"},
-                "inscricoes": {"type": "integer"}
-              }
-            }
-          },
-          "taxa_conclusao_geral": {"type": "number", "format": "float"},
-          "alertas": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "tipo": {"type": "string"},
-                "mensagem": {"type": "string"},
-                "prioridade": {"type": "string", "enum": ["baixa", "media", "alta"]}
-              }
-            }
-          }
-        }
-      },
       "Department": {"type":"object","properties":{"codigo":{"type":"string"},"nome":{"type":"string"},"descricao":{"type":"string","nullable":true},"ativo":{"type":"boolean"}}},
       "DepartmentCreate": {"type":"object","required":["codigo","nome"],"properties":{"codigo":{"type":"string"},"nome":{"type":"string"},"descricao":{"type":"string","nullable":true}}},
-      "DepartmentUpdate": {"type":"object","properties":{"nome":{"type":"string"},"descricao":{"type":"string","nullable":true},"ativo":{"type":"boolean"}},"minProperties":1}
+      "DepartmentUpdate": {"type":"object","properties":{"nome":{"type":"string"},"descricao":{"type":"string","nullable":true},"ativo":{"type":"boolean"}},"minProperties":1},
+      "Cargo": {"type":"object","properties":{"id":{"type":"string","format":"uuid"},"nome":{"type":"string"}}},
+      "CargoCreate": {"type":"object","required":["nome"],"properties":{"nome":{"type":"string","minLength":2,"maxLength":100}}},
+      "CargoUpdate": {"type":"object","properties":{"nome":{"type":"string","minLength":2,"maxLength":100}},"minProperties":1}
     }
   }
 }
