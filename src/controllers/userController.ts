@@ -89,10 +89,8 @@ export async function updateDepartmentHandler(req: Request, res: Response, next:
 
 // ============== CARGOS HANDLERS ==============
 export async function getCargosHandler(req: Request, res: Response, next: NextFunction) {
-  const parsed = listCargosQuerySchema.safeParse(req.query);
-  if (!parsed.success) return next(new HttpError(400, 'validation_error', parsed.error.issues));
   try {
-    const cargos = await listCargos(parsed.data);
+    const cargos = await listCargos();
     res.json(cargos);
   } catch (err) { next(err); }
 }

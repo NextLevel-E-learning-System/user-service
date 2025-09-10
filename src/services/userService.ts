@@ -37,8 +37,8 @@ export async function updateDept(codigo: string, data: { nome?: string; descrica
 }
 
 // ============== CARGOS ==============
-export async function listCargos(params?: { search?: string; limit?: number; offset?: number; }) {
-  return await findCargos(params);
+export async function listCargos() {
+  return await findCargos();
 }
 
 export async function createNewCargo(data: { nome: string }, roles: string[]) {
