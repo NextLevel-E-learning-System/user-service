@@ -39,3 +39,15 @@ export const departmentCreateSchema = z.object({
   gestor_id: z.string().uuid().nullable().optional()
 });
 export const departmentUpdateSchema = departmentCreateSchema.partial();
+
+// Cargos
+export const cargoCreateSchema = z.object({
+  nome: z.string().min(2).max(100)
+});
+export const cargoUpdateSchema = cargoCreateSchema.partial();
+
+export const listCargosQuerySchema = z.object({
+  search: z.string().min(2).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).default(0)
+});

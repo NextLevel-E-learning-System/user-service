@@ -157,6 +157,95 @@ export async function updateDepartment(codigo: string, data: { nome?: string; de
   });
 }
 
+export async function findCargos(filters?: {
+  id?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  return withClient(async c => {
+    const conds: string[] = [];
+    const values: (string | number)[] = [];
+    let idx = 1;
+
+    if (filters?.id) {
+      conds.push(`id = $${idx++}`);
+      values.push(filters.id);
+    }
+
+    if (filters?.search) {
+      conds.push(`unaccent(nome) ILIKE unaccent($${idx})`);
+      values.push(`%${filters.search}%`);
+      idx++;
+    }
+
+    const where = conds.length ? 'where ' + conds.join(' and ') : '';
+    
+    let sql = `select id, nome`;
+    
+    // Se buscar por ID específico, retorna um único resultado
+    if (!filters?.id) {
+      sql += ', count(*) over() as total';
+    }
+
+    sql += ` from user_service.cargos ${where} order by nome`;
+
+    if (filters?.limit) {
+      sql += ` limit $${idx++}`;
+      values.push(filters.limit);
+    }
+
+    if (filters?.offset) {
+      sql += ` offset $${idx}`;
+      values.push(filters.offset);
+    }
+
+    const r = await c.query(sql, values);
+    
+    // Se buscar por ID específico, retorna um único resultado
+    if (filters?.id) {
+      return r.rows[0] || null;
+    }
+    
+    // Para listagem, retorna com total
+    const total = r.rows[0]?.total ? Number(r.rows[0].total) : 0;
+    return { items: r.rows.map(({ total: _total, ...rest }) => rest), total };
+  });
+}
+
+export async function createCargo(data: { nome: string }) {
+  return withClient(async c => {
+    const r = await c.query(
+      'insert into user_service.cargos (nome) values ($1) returning id, nome',
+      [data.nome]
+    );
+    return r.rows[0];
+  });
+}
+
+export async function updateCargo(id: string, data: { nome?: string }) {
+  return withClient(async c => {
+    const sets: string[] = [];
+    const vals: string[] = [];
+    let i = 1;
+    
+    if (data.nome !== undefined) {
+      sets.push(`nome=$${i}`);
+      vals.push(data.nome);
+      i++;
+    }
+    
+    if (sets.length === 0) return null;
+    
+    vals.push(id);
+    const r = await c.query(
+      `update user_service.cargos set ${sets.join(', ')} where id=$${i} returning id, nome`,
+      vals
+    );
+    return r.rows[0] || null;
+  });
+}
+
 export async function createInstructor(funcionario_id: string, cursos_id: string[], biografia: string | null) {
   return withClient(async c => {
     await c.query('insert into user_service.instrutores(funcionario_id, curso_id, biografia) values ($1,$2,$3) on conflict (funcionario_id) do update set curso_id=excluded.curso_id', [funcionario_id, cursos_id, biografia]);

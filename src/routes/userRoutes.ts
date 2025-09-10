@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { meHandler, updateUserHandler, getUserHandler, getDepartmentsHandler, createDepartmentHandler, updateDepartmentHandler, listUsersHandler, getUserAchievementsHandler } from '../controllers/userController.js';
+import { meHandler, updateUserHandler, getUserHandler, getDepartmentsHandler, createDepartmentHandler, updateDepartmentHandler, listUsersHandler, getUserAchievementsHandler, getCargosHandler, createCargoHandler, updateCargoHandler } from '../controllers/userController.js';
 import { getDashboardHandler } from '../controllers/dashboardController.js';
 
 export const userRouter = Router();
@@ -11,6 +11,10 @@ userRouter.get('/dashboard', getDashboardHandler); // Dashboard inteligente base
 userRouter.get('/departments', getDepartmentsHandler); // Lista departamentos
 userRouter.post('/departments', createDepartmentHandler); // Criar departamento (admin)
 userRouter.patch('/departments/:codigo', updateDepartmentHandler); // Atualizar departamento (admin)
+
+userRouter.get('/cargos', getCargosHandler); // Lista cargos
+userRouter.post('/cargos', createCargoHandler); // Criar cargo (admin)
+userRouter.patch('/cargos/:id', updateCargoHandler); // Atualizar cargo (admin)
 
 // User routes
 userRouter.get('/me', meHandler); // Perfil próprio

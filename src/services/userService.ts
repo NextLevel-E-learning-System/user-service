@@ -1,5 +1,5 @@
 import { publishDomainEvent } from '../utils/events.js';
-import { findUsers, findDepartments, createInstructor, updateInstructorBio, createDepartment, updateDepartment, updateUserComposite, findUserAchievements } from '../repositories/userRepository.js';
+import { findUsers, findDepartments, createInstructor, updateInstructorBio, createDepartment, updateDepartment, updateUserComposite, findUserAchievements, findCargos, createCargo, updateCargo } from '../repositories/userRepository.js';
 import { HttpError } from '../utils/httpError.js';
 import { logger } from '../config/logger.js';
 
@@ -34,6 +34,21 @@ export async function updateDept(codigo: string, data: { nome?: string; descrica
   await updateDepartment(codigo, data);
   publishDomainEvent('users.v1.DepartmentUpdated', { codigo, ...data }).catch(err => logger.error({ err }, 'publish_department_updated_failed'));
   return await findDepartments({ codigo });
+}
+
+// ============== CARGOS ==============
+export async function listCargos(params?: { search?: string; limit?: number; offset?: number; }) {
+  return await findCargos(params);
+}
+
+export async function createNewCargo(data: { nome: string }, roles: string[]) {
+  if (!roles.includes('ADMIN')) throw new HttpError(403, 'forbidden');
+  return await createCargo(data);
+}
+
+export async function updateExistingCargo(id: string, data: { nome?: string }, roles: string[]) {
+  if (!roles.includes('ADMIN')) throw new HttpError(403, 'forbidden');
+  return await updateCargo(id, data);
 }
 
 export async function listAllUsers(params: { departamento_id?: string; tipo_usuario?: string; status?: string; search?: string; limit: number; offset: number; }, roles: string[]) {
@@ -71,6 +86,11 @@ export async function compositeUpdate(userId: string, payload: {
   if (payload.departamento_id) {
     const dept = await findDepartments({ codigo: payload.departamento_id });
     if (!dept) throw new HttpError(400, 'invalid_department');
+  }
+
+  if (payload.cargo) {
+    const cargo = await findCargos({ id: payload.cargo });
+    if (!cargo) throw new HttpError(400, 'invalid_cargo');
   }
 
   // Aplicar atualização principal

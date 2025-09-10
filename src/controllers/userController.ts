@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { updateUserSchema, departmentCreateSchema, departmentUpdateSchema, listUsersQuerySchema } from '../validation/userSchemas.js';
-import { getById, getDepartments, createDept, updateDept, listAllUsers, getUserAchievements } from '../services/userService.js';
+import { updateUserSchema, departmentCreateSchema, departmentUpdateSchema, listUsersQuerySchema, cargoCreateSchema, cargoUpdateSchema, listCargosQuerySchema } from '../validation/userSchemas.js';
+import { getById, getDepartments, createDept, updateDept, listAllUsers, getUserAchievements, listCargos, createNewCargo, updateExistingCargo } from '../services/userService.js';
 import { updateInstructorBio, updateUserComposite } from '../repositories/userRepository.js';
 import { HttpError } from '../utils/httpError.js';
 
@@ -84,6 +84,37 @@ export async function updateDepartmentHandler(req: Request, res: Response, next:
     const roles = req.header('x-user-roles')?.split(',') || [];
     const dept = await updateDept(req.params.codigo, parsed.data, roles);
     res.json(dept);
+  } catch (err) { next(err); }
+}
+
+// ============== CARGOS HANDLERS ==============
+export async function getCargosHandler(req: Request, res: Response, next: NextFunction) {
+  const parsed = listCargosQuerySchema.safeParse(req.query);
+  if (!parsed.success) return next(new HttpError(400, 'validation_error', parsed.error.issues));
+  try {
+    const cargos = await listCargos(parsed.data);
+    res.json(cargos);
+  } catch (err) { next(err); }
+}
+
+export async function createCargoHandler(req: Request, res: Response, next: NextFunction) {
+  const parsed = cargoCreateSchema.safeParse(req.body);
+  if (!parsed.success) return next(new HttpError(400, 'validation_error', parsed.error.issues));
+  try {
+    const roles = req.header('x-user-roles')?.split(',') || [];
+    const cargo = await createNewCargo(parsed.data, roles);
+    res.status(201).json(cargo);
+  } catch (err) { next(err); }
+}
+
+export async function updateCargoHandler(req: Request, res: Response, next: NextFunction) {
+  const parsed = cargoUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return next(new HttpError(400, 'validation_error', parsed.error.issues));
+  try {
+    const roles = req.header('x-user-roles')?.split(',') || [];
+    const cargo = await updateExistingCargo(req.params.id, parsed.data, roles);
+    if (!cargo) return next(new HttpError(404, 'cargo_not_found'));
+    res.json(cargo);
   } catch (err) { next(err); }
 }
 
