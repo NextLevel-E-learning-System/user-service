@@ -4,7 +4,8 @@ import { createHash } from 'crypto';
 
 // Rotas públicas locais dentro do user-service (após prefixo /users/v1 montado em server)
 const publicUserRoutes: { method: string; path: RegExp }[] = [
-  { method: 'GET', path: /^\/departments$/ } // listar departamentos é público
+  { method: 'GET', path: /^\/departments$/ }, // listar departamentos é público
+  { method: 'GET', path: /^\/cargos$/ }, // listar cargos é público
 ];
 
 function isPublic(req: Request): boolean {
