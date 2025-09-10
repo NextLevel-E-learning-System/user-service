@@ -35,7 +35,6 @@ async function getEmployeeDashboard(userId: string) {
         proximo_badge: 'Bronze',
         cursos_em_andamento: [],
         cursos_concluidos: [],
-        cursos_disponiveis: [],
         timeline: []
       }
     };
@@ -126,18 +125,6 @@ export async function getEmployeeDashboardData(userId: string) {
       order by i.data_conclusao desc nulls last limit 10
     `, [userId, 'CONCLUIDO']);
     
-    // Cursos disponíveis (não inscritos)
-    const disponiveis = await c.query(`
-      select c.codigo, c.titulo, c.descricao, c.nivel_dificuldade, c.xp_oferecido
-      from course_service.cursos c
-      where c.ativo = true 
-      and not exists (
-        select 1 from progress_service.inscricoes i 
-        where i.curso_id = c.codigo and i.funcionario_id = $1
-      )
-      order by c.titulo limit 10
-    `, [userId]);
-
     // Ranking no departamento
     const rankingDept = await c.query(`
       select 
@@ -198,7 +185,6 @@ export async function getEmployeeDashboardData(userId: string) {
       },
       cursos_em_andamento: emAndamento.rows,
       cursos_concluidos: concluidos.rows,
-      cursos_disponiveis: disponiveis.rows,
       timeline: timeline.rows.map(r => ({
         tipo: r.tipo,
         descricao: r.descricao,
