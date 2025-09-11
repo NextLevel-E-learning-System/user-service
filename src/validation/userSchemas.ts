@@ -1,13 +1,15 @@
 import { z } from 'zod';
 
-// POST /users/v1 (completar cadastro inicial)
 export const updateUserSchema = z.object({
-  nome: z.string().min(1),
-  cpf: z.string().regex(/^\d{11}$/),
+  nome: z.string().min(1).optional(),
+  cpf: z.string().regex(/^\d{11}$/).optional(),
   email: z.string().email().optional(),
-  departamento_id: z.string().min(1),
-  cargo: z.string().min(1)
-});
+  departamento_id: z.string().min(1).optional(),
+  cargo: z.string().min(1).optional(),
+  status: z.enum(['ATIVO','INATIVO']).optional(),
+  tipo_usuario: z.enum(['FUNCIONARIO','INSTRUTOR','ADMIN']).optional(),
+  biografia: z.string().max(4000).nullable().optional()
+}).refine(o => Object.keys(o).length>0, { message: 'Nenhum campo para atualizar' });
 
 // Filtros listagem
 export const listUsersQuerySchema = z.object({
@@ -19,17 +21,7 @@ export const listUsersQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0)
 });
 
-// PATCH /users/v1/:id (composite)
-export const patchUserCompositeSchema = z.object({
-  nome: z.string().min(1).optional(),
-  departamento_id: z.string().min(1).optional(),
-  cargo: z.string().min(1).optional(),
-  email: z.string().email().optional(),
-  status: z.enum(['ATIVO','INATIVO']).optional(),
-  tipo_usuario: z.enum(['FUNCIONARIO','INSTRUTOR','ADMIN']).optional(),
-  biografia: z.string().max(4000).nullable().optional(),
-  cursos_id: z.array(z.string()).optional(),
-}).refine(o => Object.keys(o).length>0, { message: 'Nenhum campo para atualizar' });
+
 
 // Departamentos
 export const departmentCreateSchema = z.object({
