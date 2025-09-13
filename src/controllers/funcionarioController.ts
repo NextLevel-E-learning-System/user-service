@@ -30,7 +30,7 @@ export const registerFuncionario = async (req: Request, res: Response) => {
         [funcionario.id, roleRes.rows[0].id, null]
       );
 
-    await emitUserCreated(funcionario, senha);
+    await emitUserCreated(funcionario.email, senha, funcionario.id, funcionario.nome);
 
     res.status(201).json(funcionario);
   });
@@ -85,9 +85,9 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
       [email]
     );
     if (rows.length === 0) return res.status(404).json({ error: "usuario_nao_encontrado" });
+    const funcionario = rows[0];
 
-
-  await emitUserPasswordReset(email, novaSenha);
+    await emitUserPasswordReset(email, funcionario.id, novaSenha);
 
   res.json({ message: 'Senha redefinida e evento enviado.' });
 });
