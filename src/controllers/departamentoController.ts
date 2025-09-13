@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { withClient } from "../config/db";
+import { withClient } from "../config/db.js";
 
 export const listDepartamentos = async (_req: Request, res: Response) => {
   await withClient(async (c) => {
