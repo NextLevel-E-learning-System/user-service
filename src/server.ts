@@ -3,8 +3,7 @@ import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { logger } from './config/logger.js';
 import { loadOpenApi } from './config/openapi.js';
-import { publicRouter } from "./routes/publicRoutes.js";
-import { funcionarioRouter } from "./routes/funcionarioRoutes.js";
+import { cargoRouter, departamentoRouter, funcionarioRouter, publicRouter } from './routes/routes.js';
 
 const app = express();
 app.use(express.json());
@@ -19,6 +18,8 @@ app.use(express.json());
   });
 
 app.use("/public", publicRouter);
+app.use("/departamentos", departamentoRouter);
+app.use("/cargos", cargoRouter);
 app.use("/funcionarios", funcionarioRouter);
 
 export default app;

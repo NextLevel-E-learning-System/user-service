@@ -5,3 +5,7 @@ export async function createAuthUser(email: string, senha: string) {
   const resp = await axios.post(`${AUTH_URL}/register`, { email, senha });
   return resp.data.usuario;
 }
+
+export async function resetPassword(email: string) {
+  await axios.post(`${AUTH_URL}/reset-password`, { email });
+}
