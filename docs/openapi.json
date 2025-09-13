@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "User Service API",
-    "version": "1.5.0",
-    "description": "API completa para gestão de usuários, instrutores, departamentos e conquistas. Inclui dashboard administrativo, sistema automático de XP/níveis e funcionalidades completas de CRUD."
+    "version": "1.6.0",
+    "description": "Serviço responsável pelo ciclo de vida de funcionários/usuários (criação, roles, departamentos, cargos). Fluxo de criação gera usuário de autenticação no Auth Service e publica eventos em RabbitMQ (exchange 'user.events', direct).\n\nEventos publicados:\n- user.created (payload: funcionario + senha provisória)\n- user.password_reset (payload: { email, senha })\n- user.role_changed (payload: { userId, role })\n"
   },
   "paths": {
     "/users/v1": {

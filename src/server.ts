@@ -11,6 +11,7 @@ app.use(express.json());
   app.use((req, _res, next) => { (req as any).log = logger; next(); });
 
   const openapiSpec = loadOpenApi('User Service API');
+  app.get('/openapi.json', (_req,res)=> res.json(openapiSpec));
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec));
 
   app.get('/', (_req, res) => {
