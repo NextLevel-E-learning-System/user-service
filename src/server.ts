@@ -3,10 +3,12 @@ import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { logger } from './config/logger.js';
 import { loadOpenApi } from './config/openapi.js';
+import { errorHandler } from './middleware/errorHandler.js';
 import { cargoRouter, departamentoRouter, funcionarioRouter, publicRouter } from './routes/routes.js';
 
-const app = express();
-app.use(express.json());
+export function createServer() {
+  const app = express();
+  app.use(express.json());
   app.use(cors({ origin: '*' }));
   app.use((req, _res, next) => { (req as any).log = logger; next(); });
 
@@ -18,9 +20,11 @@ app.use(express.json());
     res.redirect('/docs');
   });
 
-app.use("/public", publicRouter);
-app.use("/departamentos", departamentoRouter);
-app.use("/cargos", cargoRouter);
-app.use("/funcionarios", funcionarioRouter);
-
-export default app;
+  app.use('/users/v1', publicRouter);
+  app.use('/users/v1/funcionarios', funcionarioRouter);
+  app.use('/users/v1/departamentos', departamentoRouter);
+  app.use('/users/v1/cargos', cargoRouter);
+  
+  app.use(errorHandler);
+  return app;
+}

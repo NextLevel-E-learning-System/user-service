@@ -1,11 +1,8 @@
-import { config } from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
-import app from "./server";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-config({ path: path.resolve(__dirname, "../.env") });
-
+import { config } from 'dotenv';
+config();
+import { createServer } from './server.js';
 const port = Number(process.env.PORT || 3333);
-app.listen(port, () => console.log(`[user-service] listening on ${port}`));
+createServer().listen(port, () => {
+  // eslint-disable-next-line no-console
+  console.log(`[user-service] listening on ${port}`);
+});
