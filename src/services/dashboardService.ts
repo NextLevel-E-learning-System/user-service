@@ -1,5 +1,5 @@
 import { HttpError } from '../utils/httpError.js';
-import { withClient } from '../db.js';
+import { withClient } from '../config/db.js';
 
 export async function getDashboardByRole(userId: string, role: string) {
   switch (role) {

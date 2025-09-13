@@ -1,4 +1,4 @@
-import { withClient } from '../db.js';
+import { withClient } from '../config/db.js';
 
 export async function findUsers(filters: {
   id?: string;
