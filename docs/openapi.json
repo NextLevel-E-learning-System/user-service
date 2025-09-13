@@ -2,172 +2,365 @@
   "openapi": "3.0.3",
   "info": {
     "title": "User Service API",
-    "version": "1.6.0",
-    "description": "Serviço responsável pelo ciclo de vida de funcionários/usuários (criação, roles, departamentos, cargos). Fluxo de criação gera usuário de autenticação no Auth Service e publica eventos em RabbitMQ (exchange 'user.events', direct).\n\nEventos publicados:\n- user.created (payload: funcionario + senha provisória)\n- user.password_reset (payload: { email, senha })\n- user.role_changed (payload: { userId, role })\n"
+    "version": "2.0.0",
+    "description": "Serviço de usuários com departamentos, cargos e funcionários. Rotas REAIS implementadas."
   },
   "paths": {
-    "/users/v1": {
+    "/users/v1/departamentos": {
       "get": {
-        "summary": "Listar usuários (ADMIN)",
-        "tags": ["users"],
-        "security": [{"bearerAuth":[]}],
-        "parameters": [
-          {"name":"status","in":"query","schema":{"type":"string","enum":["ATIVO","INATIVO"]}},
-          {"name":"departamento_id","in":"query","schema":{"type":"string"}},
-          {"name":"tipo_usuario","in":"query","schema":{"type":"string","enum":["FUNCIONARIO","INSTRUTOR","ADMIN"]}},
-          {"name":"search","in":"query","schema":{"type":"string"}},
-          {"name":"limit","in":"query","schema":{"type":"integer","default":50,"minimum":1,"maximum":200}},
-          {"name":"offset","in":"query","schema":{"type":"integer","default":0,"minimum":0}}
-        ],
-        "responses": {"200": {"description": "Lista de usuários","content":{"application/json":{"schema":{"type":"object","properties":{"items":{"type":"array","items":{"$ref":"#/components/schemas/User"}},"total":{"type":"integer"}}}}}}}
-      },
-      "post": {
-        "summary": "Completar cadastro ou atualizar perfil básico",
-        "tags": ["users"],
-        "security": [{"bearerAuth":[]}],
-        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UserUpsert"}}}},
-        "responses": {"200": {"description": "Perfil atualizado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/User"}}}}, "400": {"description": "Dados inválidos"}}
-      }
-    },
-    "/users/v1/me": {
-      "get": {"summary": "Obter meu perfil","tags":["users"],"security":[{"bearerAuth":[]}],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/User"}}}},"404":{"description":"Não encontrado"}}}
-    },
-    "/users/v1/dashboard": {
-      "get": {
-        "summary": "Dashboard inteligente baseado no perfil do usuário",
-        "description": "🎯 **Dashboard único que adapta conteúdo automaticamente baseado no role:**\n\n👤 **FUNCIONARIO** (R03): XP atual, nível, badges, cursos em andamento/concluídos/disponíveis, ranking departamental, timeline de atividades, menu de operações\n\n👨‍🏫 **INSTRUTOR** (R11): Cursos que ministra com estatísticas, avaliações pendentes de correção, métricas de performance (taxa de conclusão, avaliação média)\n\n👑 **ADMIN** (R17): Métricas gerais da plataforma, usuários ativos, cursos populares, engajamento por departamento, alertas do sistema",
-        "tags": ["dashboard"],
-        "security": [{"bearerAuth":[]}],
+        "summary": "Listar departamentos (público)",
+        "tags": ["departamentos"],
         "responses": {
           "200": {
-            "description": "Dashboard personalizado baseado no role do usuário",
+            "description": "Lista de departamentos ativos",
             "content": {
               "application/json": {
-                "examples": {
-                  "funcionario": {
-                    "summary": "Dashboard Funcionário",
-                    "value": {
-                      "tipo_dashboard": "funcionario",
-                      "xp_atual": 2500,
-                      "nivel_atual": 3,
-                      "proximo_badge": "Ouro",
-                      "progresso_nivel": 50,
-                      "cursos_concluidos": [{"codigo": "HTML101", "titulo": "HTML Básico", "xp_oferecido": 100}],
-                      "cursos_disponiveis": [{"codigo": "CSS101", "titulo": "CSS Básico", "xp_oferecido": 150}],
-                      "menu_operacoes": [{"nome": "Catálogo de Cursos", "url": "/catalogo", "icone": "book"}]
-                    }
-                  },
-                  "instrutor": {
-                    "summary": "Dashboard Instrutor", 
-                    "value": {
-                      "tipo_dashboard": "instrutor",
-                      "cursos": [{"codigo": "JS101", "titulo": "JavaScript Básico", "inscritos": 25, "taxa_conclusao": 80, "avaliacao_media": 4.5}],
-                      "pendentes_correcao": 5,
-                      "metricas": {"taxa_conclusao_geral": 75, "avaliacao_media_geral": 4.3, "total_alunos": 150}
-                    }
-                  },
-                  "administrador": {
-                    "summary": "Dashboard Administrador",
-                    "value": {
-                      "tipo_dashboard": "administrador", 
-                      "metricas_gerais": {"usuarios_ativos": 500, "total_cursos": 45, "taxa_conclusao_geral": 78.5},
-                      "cursos_populares": [{"codigo": "JS101", "titulo": "JavaScript", "inscricoes": 200}],
-                      "alertas": [{"tipo": "Curso com baixa avaliação", "descricao": "Curso XYZ precisa de atenção", "prioridade": "alta"}]
-                    }
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/Departamento"}
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Criar departamento (ADMIN)",
+        "tags": ["departamentos"],
+        "security": [{"bearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/DepartamentoCreate"}
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Departamento criado",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Departamento"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/v1/departamentos/{codigo}": {
+      "put": {
+        "summary": "Atualizar departamento (ADMIN)",
+        "tags": ["departamentos"],
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"name": "codigo", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/DepartamentoUpdate"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Departamento atualizado",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Departamento"}
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Desativar departamento (ADMIN)",
+        "tags": ["departamentos"],
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"name": "codigo", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "204": {"description": "Departamento desativado"}
+        }
+      }
+    },
+    "/users/v1/cargos": {
+      "get": {
+        "summary": "Listar cargos (público)",
+        "tags": ["cargos"],
+        "responses": {
+          "200": {
+            "description": "Lista de cargos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/Cargo"}
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Criar cargo (ADMIN)",
+        "tags": ["cargos"],
+        "security": [{"bearerAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/CargoCreate"}
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Cargo criado",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Cargo"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/v1/cargos/{codigo}": {
+      "put": {
+        "summary": "Atualizar cargo (ADMIN)",
+        "tags": ["cargos"],
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"name": "codigo", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/CargoUpdate"}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cargo atualizado",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Cargo"}
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deletar cargo (ADMIN)",
+        "tags": ["cargos"],
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"name": "codigo", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "204": {"description": "Cargo deletado"}
+        }
+      }
+    },
+    "/users/v1/funcionarios/register": {
+      "post": {
+        "summary": "Auto-cadastro de funcionário",
+        "tags": ["funcionarios"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/FuncionarioRegister"}
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Funcionário registrado",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Funcionario"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/v1/funcionarios": {
+      "get": {
+        "summary": "Listar funcionários (ADMIN)",
+        "tags": ["funcionarios"],
+        "security": [{"bearerAuth": []}],
+        "responses": {
+          "200": {
+            "description": "Lista de funcionários",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/Funcionario"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/v1/funcionarios/{id}/role": {
+      "put": {
+        "summary": "Atualizar role do funcionário (ADMIN)",
+        "tags": ["funcionarios"],
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"name": "id", "in": "path", "required": true, "schema": {"type": "string", "format": "uuid"}}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["role"],
+                "properties": {
+                  "role": {"type": "string", "enum": ["FUNCIONARIO", "INSTRUTOR", "ADMIN"]}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role atualizada",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Funcionario"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/v1/funcionarios/reset-password": {
+      "post": {
+        "summary": "Solicitar reset de senha",
+        "tags": ["funcionarios"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": {"type": "string", "format": "email"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email de reset enviado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sucesso": {"type": "boolean"}
                   }
                 }
               }
             }
-          },
-          "401": {"description": "Não autorizado"},
-          "403": {"description": "Acesso negado"}
+          }
         }
       }
-    },
-    "/users/v1/{id}": {
-      "get": {"summary": "Obter usuário por ID","tags":["users"],"security":[{"bearerAuth":[]}],"parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"responses": {"200": {"description": "OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/User"}}}},"404": {"description": "Não encontrado"}}},
-  "patch": {"summary": "Atualização de perfil","description":"Role-based: ADMIN pode alterar (nome, cpf, departamento_id, cargo, status, tipo_usuario); INSTRUTOR pode alterar apenas a própria biografia; FUNCIONARIO não altera nada.","tags":["users"],"security":[{"bearerAuth":[]}],"parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"type":"object","minProperties":1,"properties":{"nome":{"type":"string"},"cpf":{"type":"string"},"email":{"type":"string"},"departamento_id":{"type":"string"},"cargo":{"type":"string"},"status":{"type":"string","enum":["ATIVO","INATIVO"]},"tipo_usuario":{"type":"string","enum":["FUNCIONARIO","INSTRUTOR","ADMIN"]},"biografia":{"type":"string"}}}}}},"responses":{"200":{"description":"Usuário atualizado"},"400":{"description":"Dados inválidos"},"403":{"description":"Proibido"},"404":{"description":"Não encontrado"}}}
-    },
-    "/users/v1/{id}/achievements": {
-      "get": {
-        "summary": "Obter conquistas do usuário",
-        "tags": ["achievements"],
-        "security": [{"bearerAuth":[]}],
-        "parameters": [{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],
-        "responses": {
-          "200": {
-            "description": "Conquistas do usuário",
-            "content": {
-              "application/json": {
-                "schema": {"$ref": "#/components/schemas/UserAchievements"}
-              }
-            }
-          },
-          "404": {"description": "Usuário não encontrado"}
-        }
-      }
-    },
-    "/users/v1/departments": {
-      "get": {"summary":"Listar departamentos","tags":["departments"],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/Department"}}}}}}},
-      "post": {"summary":"Criar departamento (ADMIN)","tags":["departments"],"security":[{"bearerAuth":[]}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DepartmentCreate"}}}},"responses":{"201":{"description":"Criado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Department"}}}},"409":{"description":"Conflito"}}}
-    },
-    "/users/v1/departments/{codigo}": {
-      "patch": {"summary":"Atualizar departamento (ADMIN)","tags":["departments"],"security":[{"bearerAuth":[]}],"parameters":[{"name":"codigo","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DepartmentUpdate"}}}},"responses":{"200":{"description":"Atualizado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Department"}}}},"404":{"description":"Não encontrado"}}}
-    },
-    "/users/v1/cargos": {
-      "get": {"summary":"Listar cargos","tags":["cargos"],"parameters":[{"name":"search","in":"query","schema":{"type":"string"}},{"name":"limit","in":"query","schema":{"type":"integer","default":50}},{"name":"offset","in":"query","schema":{"type":"integer","default":0}}],"responses":{"200":{"description":"OK","content":{"application/json":{"schema":{"type":"object","properties":{"items":{"type":"array","items":{"$ref":"#/components/schemas/Cargo"}},"total":{"type":"integer"}}}}}}}},
-      "post": {"summary":"Criar cargo (ADMIN)","tags":["cargos"],"security":[{"bearerAuth":[]}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CargoCreate"}}}},"responses":{"201":{"description":"Criado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Cargo"}}}},"400":{"description":"Dados inválidos"}}}
-    },
-    "/users/v1/cargos/{id}": {
-      "patch": {"summary":"Atualizar cargo (ADMIN)","tags":["cargos"],"security":[{"bearerAuth":[]}],"parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CargoUpdate"}}}},"responses":{"200":{"description":"Atualizado","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Cargo"}}}},"404":{"description":"Não encontrado"}}}
     }
   },
   "components": {
     "securitySchemes": {
-      "bearerAuth": {"type":"http","scheme":"bearer","bearerFormat":"JWT"}
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
     },
     "schemas": {
-      "User": {"type":"object","properties":{"id":{"type":"string"},"nome":{"type":"string"},"email":{"type":"string"},"status":{"type":"string","enum":["ATIVO","INATIVO"]},"tipo_usuario":{"type":"string","enum":["FUNCIONARIO","INSTRUTOR","ADMIN"]},"departamento_id":{"type":"string","nullable":true},"cargo":{"type":"string","nullable":true},"xp":{"type":"integer"},"biografia":{"type":"string","nullable":true},"cursos_id":{"type":"array","items":{"type":"string"},"nullable":true},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":"string","format":"date-time"}}},
-      "UserUpsert": {"type":"object","required":["nome"],"properties":{"nome":{"type":"string"},"departamento_id":{"type":"string","nullable":true},"cargo":{"type":"string","nullable":true}}},
-      "Instructor": {
+      "Departamento": {
         "type": "object",
         "properties": {
-          "id": {"type": "string"},
+          "codigo": {"type": "string"},
           "nome": {"type": "string"},
-          "email": {"type": "string"},
-          "biografia": {"type": "string", "nullable": true},
-          "curso_id": {"type": "array", "items": {"type": "string"}},
-          "avaliacao_media": {"type": "number", "format": "float"},
-          "departamento_id": {"type": "string", "nullable": true},
-          "departamento_nome": {"type": "string", "nullable": true}
+          "descricao": {"type": "string", "nullable": true},
+          "gestor_funcionario_id": {"type": "string", "format": "uuid", "nullable": true},
+          "ativo": {"type": "boolean"}
         }
       },
-      "UserAchievements": {
+      "DepartamentoCreate": {
+        "type": "object",
+        "required": ["codigo", "nome"],
+        "properties": {
+          "codigo": {"type": "string"},
+          "nome": {"type": "string"},
+          "descricao": {"type": "string", "nullable": true},
+          "gestor_funcionario_id": {"type": "string", "format": "uuid", "nullable": true}
+        }
+      },
+      "DepartamentoUpdate": {
         "type": "object",
         "properties": {
-          "funcionario_id": {"type": "string"},
-          "conquistas": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "id": {"type": "string"},
-                "tipo_conquista": {"type": "string"},
-                "data_conquista": {"type": "string", "format": "date-time"},
-                "detalhes": {"type": "object"}
-              }
-            }
-          },
-          "total_xp": {"type": "integer"},
-          "nivel_atual": {"type": "integer"}
+          "nome": {"type": "string"},
+          "descricao": {"type": "string", "nullable": true},
+          "gestor_funcionario_id": {"type": "string", "format": "uuid", "nullable": true}
         }
       },
-      "Department": {"type":"object","properties":{"codigo":{"type":"string"},"nome":{"type":"string"},"descricao":{"type":"string","nullable":true},"ativo":{"type":"boolean"}}},
-      "DepartmentCreate": {"type":"object","required":["codigo","nome"],"properties":{"codigo":{"type":"string"},"nome":{"type":"string"},"descricao":{"type":"string","nullable":true}}},
-      "DepartmentUpdate": {"type":"object","properties":{"nome":{"type":"string"},"descricao":{"type":"string","nullable":true},"ativo":{"type":"boolean"}},"minProperties":1},
-      "Cargo": {"type":"object","properties":{"id":{"type":"string","format":"uuid"},"nome":{"type":"string"}}},
-      "CargoCreate": {"type":"object","required":["nome"],"properties":{"nome":{"type":"string","minLength":2,"maxLength":100}}},
-      "CargoUpdate": {"type":"object","properties":{"nome":{"type":"string","minLength":2,"maxLength":100}},"minProperties":1}
+      "Cargo": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string", "format": "uuid"},
+          "nome": {"type": "string"}
+        }
+      },
+      "CargoCreate": {
+        "type": "object",
+        "required": ["nome"],
+        "properties": {
+          "nome": {"type": "string"}
+        }
+      },
+      "CargoUpdate": {
+        "type": "object",
+        "properties": {
+          "nome": {"type": "string"}
+        }
+      },
+      "Funcionario": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string", "format": "uuid"},
+          "email": {"type": "string", "format": "email"},
+          "nome": {"type": "string"},
+          "cargo_id": {"type": "string", "format": "uuid", "nullable": true},
+          "departamento_codigo": {"type": "string", "nullable": true},
+          "tipo_usuario": {"type": "string", "enum": ["FUNCIONARIO", "INSTRUTOR", "ADMIN"]},
+          "status": {"type": "string", "enum": ["ATIVO", "INATIVO"]}
+        }
+      },
+      "FuncionarioRegister": {
+        "type": "object",
+        "required": ["email", "nome"],
+        "properties": {
+          "email": {"type": "string", "format": "email"},
+          "nome": {"type": "string"},
+          "cargo_id": {"type": "string", "format": "uuid", "nullable": true},
+          "departamento_codigo": {"type": "string", "nullable": true}
+        }
+      }
     }
   }
 }

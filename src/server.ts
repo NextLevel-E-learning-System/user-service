@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import swaggerUi from 'swagger-ui-express';
 import { logger } from './config/logger.js';
 import { loadOpenApi } from './config/openapi.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -14,11 +13,6 @@ export function createServer() {
 
   const openapiSpec = loadOpenApi('User Service API');
   app.get('/openapi.json', (_req,res)=> res.json(openapiSpec));
-  app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec));
-
-  app.get('/', (_req, res) => {
-    res.redirect('/docs');
-  });
 
   app.use('/users/v1', publicRouter);
   app.use('/users/v1/funcionarios', funcionarioRouter);
