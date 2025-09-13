@@ -6,6 +6,6 @@ export async function createAuthUser(email: string, senha: string) {
   return resp.data.usuario;
 }
 
-export async function resetPassword(email: string) {
-  await axios.post(`${AUTH_URL}/reset-password`, { email });
+export async function resetPassword(email: string, senha?: string) {
+  await axios.post(`${AUTH_URL}/reset-password`, { email, senha });
 }
