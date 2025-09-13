@@ -3,13 +3,11 @@ import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { logger } from './config/logger.js';
 import { loadOpenApi } from './config/openapi.js';
-import { userRouter } from './routes/userRoutes.js';
-import { authMiddleware } from './middleware/auth.js';
-import { errorHandler } from './middleware/errorHandler.js';
+import { publicRouter } from "./routes/publicRoutes.js";
+import { funcionarioRouter } from "./routes/funcionarioRoutes.js";
 
-export function createServer() {
-  const app = express();
-  app.use(express.json());
+const app = express();
+app.use(express.json());
   app.use(cors({ origin: '*' }));
   app.use((req, _res, next) => { (req as any).log = logger; next(); });
 
@@ -20,7 +18,7 @@ export function createServer() {
     res.redirect('/docs');
   });
 
-  app.use('/users/v1', authMiddleware, userRouter);
-  app.use(errorHandler);
-  return app;
-}
+app.use("/public", publicRouter);
+app.use("/funcionarios", funcionarioRouter);
+
+export default app;
