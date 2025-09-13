@@ -1,4 +1,4 @@
-import { publishEvent } from "../config/rabbitmq";
+import { publishEvent } from "../config/rabbitmq.js";
 
 interface FuncionarioPayload { id: string; email: string; nome: string; [k: string]: unknown }
 
