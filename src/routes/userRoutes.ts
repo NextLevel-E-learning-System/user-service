@@ -14,7 +14,7 @@ userRouter.patch('/departments/:codigo', updateDepartmentHandler); // Atualizar 
 
 userRouter.get('/cargos', getCargosHandler); // Lista cargos
 userRouter.post('/cargos', createCargoHandler); // Criar cargo (admin)
-userRouter.patch('/cargos/:id', updateCargoHandler); // Atualizar cargo (admin)
+userRouter.patch('/cargos/:codigo', updateCargoHandler); // Atualizar cargo (admin)
 
 // User routes
 userRouter.get('/me', meHandler); // Perfil próprio

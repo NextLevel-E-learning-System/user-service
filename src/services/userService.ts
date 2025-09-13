@@ -20,14 +20,14 @@ export async function changeInstructorBio(funcionario_id: string, biografia: str
   return { success: true };
 }
 
-export async function createDept(data: { codigo: string; nome: string; descricao?: string | null; gestor_id?: string | null; }, roles: string[]) {
+export async function createDept(data: { codigo: string; nome: string; descricao?: string | null; gestor_funcionario_id?: string | null; ativo?: boolean; }, roles: string[]) {
   if (!roles.includes('ADMIN')) throw new HttpError(403, 'forbidden');
   await createDepartment(data);
   publishDomainEvent('users.v1.DepartmentCreated', data).catch(err => logger.error({ err }, 'publish_department_created_failed'));
   return await findDepartments({ codigo: data.codigo });
 }
 
-export async function updateDept(codigo: string, data: { nome?: string; descricao?: string | null; gestor_id?: string | null; }, roles: string[]) {
+export async function updateDept(codigo: string, data: { nome?: string; descricao?: string | null; gestor_funcionario_id?: string | null; ativo?: boolean; }, roles: string[]) {
   if (!roles.includes('ADMIN')) throw new HttpError(403, 'forbidden');
   const existing = await findDepartments({ codigo });
   if (!existing) throw new HttpError(404, 'department_not_found');
@@ -41,14 +41,15 @@ export async function listCargos() {
   return await findCargos();
 }
 
-export async function createNewCargo(data: { nome: string }, roles: string[]) {
+export async function createNewCargo(data: { codigo?: string; nome: string }, roles: string[]) {
   if (!roles.includes('ADMIN')) throw new HttpError(403, 'forbidden');
-  return await createCargo(data);
+  const codigo = data.codigo || data.nome.normalize('NFD').replace(/[^\w\s-]/g,'').trim().replace(/\s+/g,'_').toUpperCase().slice(0,20);
+  return await createCargo({ codigo, nome: data.nome });
 }
 
-export async function updateExistingCargo(id: string, data: { nome?: string }, roles: string[]) {
+export async function updateExistingCargo(codigo: string, data: { nome?: string }, roles: string[]) {
   if (!roles.includes('ADMIN')) throw new HttpError(403, 'forbidden');
-  return await updateCargo(id, data);
+  return await updateCargo(codigo, data);
 }
 
 export async function listAllUsers(params: { departamento_id?: string; tipo_usuario?: string; status?: string; search?: string; limit: number; offset: number; }, roles: string[]) {
@@ -89,7 +90,7 @@ export async function compositeUpdate(userId: string, payload: {
   }
 
   if (payload.cargo) {
-    const cargo = await findCargos({ id: payload.cargo });
+    const cargo = await findCargos({ codigo: payload.cargo });
     if (!cargo) throw new HttpError(400, 'invalid_cargo');
   }
 

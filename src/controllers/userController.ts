@@ -100,7 +100,7 @@ export async function updateCargoHandler(req: Request, res: Response, next: Next
   if (!parsed.success) return next(new HttpError(400, 'validation_error', parsed.error.issues));
   try {
     const roles = req.header('x-user-roles')?.split(',') || [];
-    const cargo = await updateExistingCargo(req.params.id, parsed.data, roles);
+  const cargo = await updateExistingCargo(req.params.codigo, parsed.data, roles);
     if (!cargo) return next(new HttpError(404, 'cargo_not_found'));
     res.json(cargo);
   } catch (err) { next(err); }

@@ -88,6 +88,7 @@ export async function findDepartments(filters?: {
   search?: string;
   limit?: number;
   offset?: number;
+  onlyActive?: boolean;
 }) {
   return withClient(async c => {
     const conds: string[] = [];
@@ -105,16 +106,20 @@ export async function findDepartments(filters?: {
       idx++;
     }
 
+    if (filters?.onlyActive) {
+      conds.push(`ativo = true`);
+    }
+
     const where = conds.length ? 'where ' + conds.join(' and ') : '';
     
-    let sql = `select codigo, nome, descricao, gestor_id`;
+  let sql = `select codigo, nome, descricao, gestor_funcionario_id as gestor_id, ativo`;
     
     // Se buscar por código específico, retorna um único resultado
     if (!filters?.codigo) {
       sql += ', count(*) over() as total';
     }
 
-    sql += ` from user_service.departamentos ${where} order by nome`;
+  sql += ` from user_service.departamentos ${where} order by nome`;
 
     if (filters?.limit) {
       sql += ` limit $${idx++}`;
@@ -139,18 +144,27 @@ export async function findDepartments(filters?: {
   });
 }
 
-export async function createDepartment(data: { codigo: string; nome: string; descricao?: string | null; gestor_id?: string | null; }) {
+export async function createDepartment(data: { codigo: string; nome: string; descricao?: string | null; gestor_funcionario_id?: string | null; ativo?: boolean; }) {
   return withClient(async c => {
-    await c.query('insert into user_service.departamentos(codigo, nome, descricao, gestor_id) values ($1,$2,$3,$4)', [data.codigo, data.nome, data.descricao ?? null, data.gestor_id ?? null]);
+    await c.query(`insert into user_service.departamentos
+      (codigo, nome, descricao, gestor_funcionario_id, ativo)
+      values ($1,$2,$3,$4, coalesce($5,true))`, [
+        data.codigo,
+        data.nome,
+        data.descricao ?? null,
+        data.gestor_funcionario_id ?? null,
+        data.ativo ?? true
+      ]);
   });
 }
 
-export async function updateDepartment(codigo: string, data: { nome?: string; descricao?: string | null; gestor_id?: string | null; }) {
+export async function updateDepartment(codigo: string, data: { nome?: string; descricao?: string | null; gestor_funcionario_id?: string | null; ativo?: boolean; }) {
   return withClient(async c => {
-    const sets: string[] = []; const vals: (string | null)[] = []; let i=1;
+  const sets: string[] = []; const vals: (string | null | boolean)[] = []; let i=1;
     if (data.nome !== undefined) { sets.push(`nome=$${i}`); vals.push(data.nome); i++; }
     if (data.descricao !== undefined) { sets.push(`descricao=$${i}`); vals.push(data.descricao); i++; }
-    if (data.gestor_id !== undefined) { sets.push(`gestor_id=$${i}`); vals.push(data.gestor_id); i++; }
+    if (data.gestor_funcionario_id !== undefined) { sets.push(`gestor_funcionario_id=$${i}`); vals.push(data.gestor_funcionario_id); i++; }
+    if (data.ativo !== undefined) { sets.push(`ativo=$${i}`); vals.push(data.ativo); i++; }
     if (!sets.length) return;
     vals.push(codigo);
     await c.query(`update user_service.departamentos set ${sets.join(', ')} where codigo=$${i}` , vals);
@@ -158,7 +172,7 @@ export async function updateDepartment(codigo: string, data: { nome?: string; de
 }
 
 export async function findCargos(filters?: {
-  id?: string;
+  codigo?: string;
   search?: string;
   limit?: number;
   offset?: number;
@@ -168,9 +182,9 @@ export async function findCargos(filters?: {
     const values: (string | number)[] = [];
     let idx = 1;
 
-    if (filters?.id) {
-      conds.push(`id = $${idx++}`);
-      values.push(filters.id);
+    if (filters?.codigo) {
+      conds.push(`codigo = $${idx++}`);
+      values.push(filters.codigo);
     }
 
     if (filters?.search) {
@@ -181,14 +195,14 @@ export async function findCargos(filters?: {
 
     const where = conds.length ? 'where ' + conds.join(' and ') : '';
     
-    let sql = `select id, nome`;
+  let sql = `select codigo as id, nome`;
     
     // Se buscar por ID específico, retorna um único resultado
-    if (!filters?.id) {
+  if (!filters?.codigo) {
       sql += ', count(*) over() as total';
     }
 
-    sql += ` from user_service.cargos ${where} order by nome`;
+  sql += ` from user_service.cargos ${where} order by nome`;
 
     if (filters?.limit) {
       sql += ` limit $${idx++}`;
@@ -203,7 +217,7 @@ export async function findCargos(filters?: {
     const r = await c.query(sql, values);
     
     // Se buscar por ID específico, retorna um único resultado
-    if (filters?.id) {
+  if (filters?.codigo) {
       return r.rows[0] || null;
     }
     
@@ -213,17 +227,17 @@ export async function findCargos(filters?: {
   });
 }
 
-export async function createCargo(data: { nome: string }) {
+export async function createCargo(data: { codigo: string; nome: string }) {
   return withClient(async c => {
     const r = await c.query(
-      'insert into user_service.cargos (nome) values ($1) returning id, nome',
-      [data.nome]
+  'insert into user_service.cargos (codigo, nome) values ($1,$2) returning codigo as id, nome',
+      [data.codigo, data.nome]
     );
     return r.rows[0];
   });
 }
 
-export async function updateCargo(id: string, data: { nome?: string }) {
+export async function updateCargo(codigo: string, data: { nome?: string }) {
   return withClient(async c => {
     const sets: string[] = [];
     const vals: string[] = [];
@@ -237,9 +251,9 @@ export async function updateCargo(id: string, data: { nome?: string }) {
     
     if (sets.length === 0) return null;
     
-    vals.push(id);
+    vals.push(codigo);
     const r = await c.query(
-      `update user_service.cargos set ${sets.join(', ')} where id=$${i} returning id, nome`,
+  `update user_service.cargos set ${sets.join(', ')} where codigo=$${i} returning codigo as id, nome`,
       vals
     );
     return r.rows[0] || null;

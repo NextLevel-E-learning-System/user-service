@@ -25,15 +25,17 @@ export const listUsersQuerySchema = z.object({
 
 // Departamentos
 export const departmentCreateSchema = z.object({
-  codigo: z.string().min(1).regex(/^[A-Z0-9_]{2,10}$/),
+  codigo: z.string().min(1).regex(/^[A-Z0-9_]{2,20}$/),
   nome: z.string().min(2),
   descricao: z.string().nullable().optional(),
-  gestor_id: z.string().uuid().nullable().optional()
+  gestor_funcionario_id: z.string().uuid().nullable().optional(),
+  ativo: z.boolean().optional()
 });
 export const departmentUpdateSchema = departmentCreateSchema.partial();
 
 // Cargos
 export const cargoCreateSchema = z.object({
+  codigo: z.string().min(2).max(20).regex(/^[A-Z0-9_-]+$/).optional(),
   nome: z.string().min(2).max(100)
 });
 export const cargoUpdateSchema = cargoCreateSchema.partial();
