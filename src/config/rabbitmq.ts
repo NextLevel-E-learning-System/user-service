@@ -1,25 +1,24 @@
-import amqp from 'amqplib';
-
-let channel: amqp.Channel;
+import amqplib from 'amqplib';
+import { Options } from 'amqplib';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let channel: any | undefined;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let connection: any | undefined;
+const EXCHANGE_USER = process.env.EXCHANGE_USER || 'user.events';
 
 export async function connectRabbitMQ() {
-  const conn = await amqp.connect(process.env.RABBITMQ_URL || 'amqp://localhost');
-  channel = await conn.createChannel();
-  await channel.assertQueue('user.events', { durable: true });
+  if (channel) return channel;
+  connection = await amqplib.connect(process.env.RABBITMQ_URL || 'amqp://localhost');
+  channel = await connection.createChannel();
+  await channel.assertExchange(EXCHANGE_USER, 'direct', { durable: true });
+  channel.prefetch(20);
+  return channel;
 }
 
-export async function publishEvent(queue: string, payload: any) {
-  if (!channel) throw new Error("RabbitMQ channel não inicializado");
-  channel.sendToQueue(queue, Buffer.from(JSON.stringify(payload)), { persistent: true });
-}
+export interface UserDomainEvent<T=unknown> { type: string; payload: T; emittedAt: string; }
 
-export async function consumeEvent(queue: string, callback: (msg: any) => void) {
-  if (!channel) throw new Error("RabbitMQ channel não inicializado");
-  channel.consume(queue, (msg) => {
-    if (msg) {
-      const content = JSON.parse(msg.content.toString());
-      callback(content);
-      channel.ack(msg);
-    }
-  });
+export async function publishEvent<T>(routingKey: string, payload: T, options?: Options.Publish) {
+  if (!channel) await connectRabbitMQ();
+  const evt: UserDomainEvent<T> = { type: routingKey, payload, emittedAt: new Date().toISOString() };
+  channel!.publish(EXCHANGE_USER, routingKey, Buffer.from(JSON.stringify(evt)), { persistent: true, contentType: 'application/json', ...options });
 }
