@@ -322,14 +322,17 @@
       "Cargo": {
         "type": "object",
         "properties": {
-          "id": {"type": "string", "format": "uuid"},
-          "nome": {"type": "string"}
+          "codigo": {"type": "string"},
+          "nome": {"type": "string"},
+          "criado_em": {"type": "string", "format": "date-time"},
+          "atualizado_em": {"type": "string", "format": "date-time"}
         }
       },
       "CargoCreate": {
         "type": "object",
-        "required": ["nome"],
+        "required": ["codigo", "nome"],
         "properties": {
+          "codigo": {"type": "string"},
           "nome": {"type": "string"}
         }
       },
@@ -343,22 +346,29 @@
         "type": "object",
         "properties": {
           "id": {"type": "string", "format": "uuid"},
-          "email": {"type": "string", "format": "email"},
+          "auth_user_id": {"type": "string", "format": "uuid", "nullable": true},
+          "cpf": {"type": "string", "nullable": true},
           "nome": {"type": "string"},
-          "cargo_id": {"type": "string", "format": "uuid", "nullable": true},
-          "departamento_codigo": {"type": "string", "nullable": true},
-          "tipo_usuario": {"type": "string", "enum": ["FUNCIONARIO", "INSTRUTOR", "ADMIN"]},
-          "status": {"type": "string", "enum": ["ATIVO", "INATIVO"]}
+          "email": {"type": "string", "format": "email"},
+          "departamento_id": {"type": "string", "nullable": true},
+          "cargo_nome": {"type": "string", "nullable": true},
+          "xp_total": {"type": "integer", "default": 0},
+          "nivel": {"type": "string", "default": "Iniciante"},
+          "ativo": {"type": "boolean", "default": true},
+          "inactivated_at": {"type": "string", "format": "date-time", "nullable": true},
+          "criado_em": {"type": "string", "format": "date-time"},
+          "atualizado_em": {"type": "string", "format": "date-time"}
         }
       },
       "FuncionarioRegister": {
         "type": "object",
-        "required": ["email", "nome"],
+        "required": ["nome", "email"],
         "properties": {
-          "email": {"type": "string", "format": "email"},
+          "cpf": {"type": "string", "nullable": true},
           "nome": {"type": "string"},
-          "cargo_id": {"type": "string", "format": "uuid", "nullable": true},
-          "departamento_codigo": {"type": "string", "nullable": true}
+          "email": {"type": "string", "format": "email"},
+          "departamento_id": {"type": "string", "nullable": true},
+          "cargo_nome": {"type": "string", "nullable": true}
         }
       }
     }
