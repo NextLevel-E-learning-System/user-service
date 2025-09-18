@@ -168,9 +168,9 @@ export const openapiSpec = {
         }
       }
     },
-    "/users/v1/funcionarios/register": {
+    "/users/v1/register": {
       "post": {
-        "summary": "Auto-cadastro de funcionário",
+        "summary": "Auto-cadastro de funcionário (público)",
         "tags": ["funcionarios"],
         "requestBody": {
           "required": true,
@@ -246,9 +246,9 @@ export const openapiSpec = {
         }
       }
     },
-    "/users/v1/funcionarios/reset-password": {
+    "/users/v1/reset-password": {
       "post": {
-        "summary": "Solicitar reset de senha",
+        "summary": "Solicitar reset de senha (público)",
         "tags": ["funcionarios"],
         "requestBody": {
           "required": true,
