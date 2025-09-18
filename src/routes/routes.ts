@@ -8,13 +8,11 @@ publicRouter.get("/departamentos", deptCtrl.listDepartamentos);
 publicRouter.get("/cargos", cargoCtrl.listCargos);
 
 export const departamentoRouter = Router();
-departamentoRouter.use();
 departamentoRouter.post("/", deptCtrl.createDepartamento);
 departamentoRouter.put("/:codigo", deptCtrl.updateDepartamento);
 departamentoRouter.delete("/:codigo", deptCtrl.deactivateDepartamento);
 
 export const cargoRouter = Router();
-cargoRouter.use();
 cargoRouter.post("/", cargoCtrl.createCargo);
 cargoRouter.put("/:codigo", cargoCtrl.updateCargo);
 cargoRouter.delete("/:codigo", cargoCtrl.deleteCargo);
