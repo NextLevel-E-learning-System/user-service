@@ -9,31 +9,43 @@ export async function hashPassword(pwd: string) {
 }
 
 export const registerFuncionario = async (req: Request, res: Response) => {
-  const { nome, email, cpf, departamento_id, cargo_nome } = req.body;
-  const senha = Math.random().toString().slice(-6);
-  const senhaHash = await hashPassword(senha);
+  try {
+    const { nome, email, cpf, departamento_id, cargo_nome } = req.body;
+    
+    // Validação básica
+    if (!nome || !email) {
+      return res.status(400).json({ error: "Nome e email são obrigatórios" });
+    }
 
-  const authUser = await createAuthUser(email, senhaHash);
+    const senha = Math.random().toString().slice(-6);
+    const senhaHash = await hashPassword(senha);
 
-  await withClient(async (c) => {
-    const { rows } = await c.query(`
-      INSERT INTO user_service.funcionarios
-      (auth_user_id, nome, email, cpf, departamento_id, cargo_nome)
-      VALUES ($1,$2,$3,$4,$5,$6) RETURNING *
-    `, [authUser.id, nome, email, cpf, departamento_id, cargo_nome]);
-    const funcionario = rows[0];
+    const authUser = await createAuthUser(email, senhaHash);
 
-          const roleRes = await c.query(`SELECT id FROM user_service.roles WHERE nome='ALUNO'`);
+    await withClient(async (c) => {
+      const { rows } = await c.query(`
+        INSERT INTO user_service.funcionarios
+        (auth_user_id, nome, email, cpf, departamento_id, cargo_nome)
+        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *
+      `, [authUser.id, nome, email, cpf, departamento_id, cargo_nome]);
+      const funcionario = rows[0];
+
+      const roleRes = await c.query(`SELECT id FROM user_service.roles WHERE nome='ALUNO'`);
       await c.query(
         `INSERT INTO user_service.user_roles(user_id, role_id, granted_by)
          VALUES ($1,$2,$3)`,
         [funcionario.id, roleRes.rows[0].id, null]
       );
 
-    await emitUserCreated(funcionario.email, senha, funcionario.id, funcionario.nome);
+      await emitUserCreated(funcionario.email, senha, funcionario.id, funcionario.nome);
 
-    res.status(201).json(funcionario);
-  });
+      res.status(201).json(funcionario);
+    });
+  } catch (error) {
+    console.error('Erro ao registrar funcionário:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    res.status(500).json({ error: 'Erro interno do servidor', details: errorMessage });
+  }
 };
 
 export const listFuncionarios = async (_req: Request, res: Response) => {
@@ -46,7 +58,7 @@ export const listFuncionarios = async (_req: Request, res: Response) => {
 export const updateFuncionarioRole = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { role_nome } = req.body;
-  const actor_id = (req as any).userId;
+  const actor_id = (req as Request & { userId: string }).userId;
 
   await withClient(async (c) => {
     const role = (await c.query(`SELECT id FROM user_service.roles WHERE nome=$1`, [role_nome])).rows[0];
