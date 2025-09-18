@@ -6,6 +6,8 @@ import * as funcCtrl from "../controllers/funcionarioController.js";
 export const publicRouter = Router();
 publicRouter.get("/departamentos", deptCtrl.listDepartamentos);
 publicRouter.get("/cargos", cargoCtrl.listCargos);
+publicRouter.post("/register", funcCtrl.registerFuncionario); // auto-cadastro ALUNO
+publicRouter.post("/reset-password", funcCtrl.requestPasswordReset);
 
 export const departamentoRouter = Router();
 departamentoRouter.post("/", deptCtrl.createDepartamento);
@@ -18,7 +20,5 @@ cargoRouter.put("/:codigo", cargoCtrl.updateCargo);
 cargoRouter.delete("/:codigo", cargoCtrl.deleteCargo);
 
 export const funcionarioRouter = Router();
-funcionarioRouter.post("/register", funcCtrl.registerFuncionario); // auto-cadastro ALUNO
 funcionarioRouter.get("/", funcCtrl.listFuncionarios);
 funcionarioRouter.put("/:id/role", funcCtrl.updateFuncionarioRole);
-funcionarioRouter.post("/reset-password", funcCtrl.requestPasswordReset);
