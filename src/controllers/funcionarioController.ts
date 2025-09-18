@@ -17,10 +17,8 @@ export const registerFuncionario = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Nome e email são obrigatórios" });
     }
 
-    const senha = Math.random().toString().slice(-6);
-    const senhaHash = await hashPassword(senha);
-
-    const authUser = await createAuthUser(email, senhaHash);
+  // Agora o auth-service gera a senha e devolve
+  const authUser = await createAuthUser(email);
 
     await withClient(async (c) => {
       const { rows } = await c.query(`
@@ -37,7 +35,8 @@ export const registerFuncionario = async (req: Request, res: Response) => {
         [funcionario.id, roleRes.rows[0].id, null]
       );
 
-      await emitUserCreated(funcionario.email, senha, funcionario.id, funcionario.nome);
+  // Não temos mais a senha aqui; notification-service enviará email usando evento do auth-service
+  await emitUserCreated(funcionario.email, undefined as unknown as string, funcionario.id, funcionario.nome);
 
       res.status(201).json(funcionario);
     });
@@ -88,8 +87,7 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
   
 
   const novaSenha = Math.random().toString().slice(-6);
-  const senhaHash = await hashPassword(novaSenha);
-  await resetPassword(email, senhaHash);
+  await resetPassword(email, novaSenha);
 
     await withClient(async (c) => {
     const { rows } = await c.query(
