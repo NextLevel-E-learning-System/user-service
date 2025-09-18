@@ -11,8 +11,14 @@ export function createServer() {
   app.use(cors({ origin: '*' }));
   app.use((req, _res, next) => { (req as any).log = logger; next(); });
 
-  const openapiSpec = loadOpenApi('User Service API');
-  app.get('/openapi.json', (_req,res)=> res.json(openapiSpec));
+  app.get('/openapi.json', async (_req,res)=> {
+    try {
+      const openapiSpec = await loadOpenApi('User Service API');
+      res.json(openapiSpec);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to load OpenAPI spec' });
+    }
+  });
 
   app.use('/users/v1', publicRouter);
   app.use('/users/v1/funcionarios', funcionarioRouter);

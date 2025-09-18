@@ -1,4 +1,4 @@
-{
+export const openapiSpec = {
   "openapi": "3.0.3",
   "info": {
     "title": "User Service API",
@@ -373,4 +373,4 @@
       }
     }
   }
-}
+} as const;
