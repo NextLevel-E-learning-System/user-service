@@ -21,9 +21,9 @@ export function createServer() {
   });
 
   app.use('/users/v1', publicRouter);
-  app.use('/users/v1/funcionarios', funcionarioRouter);
-  app.use('/users/v1/departamentos', departamentoRouter);
-  app.use('/users/v1/cargos', cargoRouter);
+  app.use('/users/v1', funcionarioRouter);
+  app.use('/users/v1', departamentoRouter);
+  app.use('/users/v1', cargoRouter);
   
   app.use(errorHandler);
   return app;
