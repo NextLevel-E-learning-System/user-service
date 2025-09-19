@@ -111,12 +111,10 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: "email_obrigatorio" });
 
-  
-
   const novaSenha = Math.random().toString().slice(-6);
   await resetPassword(email, novaSenha);
 
-    await withClient(async (c) => {
+  await withClient(async (c) => {
     const { rows } = await c.query(
       `SELECT id FROM user_service.funcionarios WHERE email=$1 AND ativo=true`,
       [email]
@@ -126,6 +124,6 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
 
     await emitUserPasswordReset(email, funcionario.id, novaSenha);
 
-  res.json({ message: 'Senha redefinida e evento enviado.' });
-});
+    res.json({ message: 'Senha redefinida e evento enviado.' });
+  });
 };

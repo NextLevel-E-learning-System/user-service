@@ -22,5 +22,5 @@ cargoRouter.delete("/:codigo", cargoCtrl.deleteCargo);
 
 export const funcionarioRouter = Router();
 funcionarioRouter.get("/", funcCtrl.listFuncionarios);
-funcionarioRouter.put("/:id/role", funcCtrl.updateFuncionarioRole);
 funcionarioRouter.get("/dashboard", dashboardCtrl.getDashboard);
+funcionarioRouter.put("/:id/role", funcCtrl.updateFuncionarioRole);

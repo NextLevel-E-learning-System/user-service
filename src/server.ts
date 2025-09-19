@@ -9,7 +9,10 @@ export function createServer() {
   const app = express();
   app.use(express.json());
   app.use(cors({ origin: '*' }));
-  app.use((req, _res, next) => { (req as any).log = logger; next(); });
+  app.use((req, _res, next) => { 
+    (req as express.Request & { log: typeof logger }).log = logger; 
+    next(); 
+  });
 
   app.get('/openapi.json', async (_req,res)=> {
     try {
