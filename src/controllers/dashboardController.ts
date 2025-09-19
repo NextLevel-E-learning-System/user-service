@@ -60,8 +60,30 @@ async function getNotifications(authUserId: string) {
 
 export const getDashboard = async (req: Request, res: Response) => {
   try {
-    const authUserId = (req as { user?: { sub: string } }).user?.sub;
+    console.log('[dashboard] Request headers:', JSON.stringify(req.headers, null, 2));
+    
+    // Ler dados do usuário do header x-user-data (base64 encoded JSON)
+    let authUserId: string | undefined;
+    
+    try {
+      const userDataHeader = req.headers['x-user-data'] as string;
+      if (userDataHeader) {
+        const userData = JSON.parse(Buffer.from(userDataHeader, 'base64').toString('utf8'));
+        authUserId = userData.sub;
+        console.log('[dashboard] User extracted from x-user-data:', userData);
+      } else {
+        // Fallback: tentar ler do header x-user-id
+        authUserId = req.headers['x-user-id'] as string;
+        console.log('[dashboard] Fallback: using x-user-id header:', authUserId);
+      }
+    } catch (error) {
+      console.error('[dashboard] Error parsing user data from headers:', error);
+    }
+    
+    console.log('[dashboard] Auth user ID extracted:', authUserId);
+    
     if (!authUserId) {
+      console.log('[dashboard] No auth user ID found, returning 401');
       throw new HttpError(401, 'user_not_authenticated');
     }
 
@@ -114,14 +136,14 @@ export const getDashboard = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('[dashboard] Error getting dashboard:', error);
     if (error instanceof HttpError) {
-      return res.status(400).json({ error: error.message });
+      return res.status(error.status || 400).json({ error: error.message });
     }
     res.status(500).json({ error: 'internal_server_error' });
   }
 };
 
 // Dashboard do Funcionário/Aluno
-async function getEmployeeDashboard(userData: any) {
+async function getEmployeeDashboard(userData: { id: string; xp_total?: number; departamento_id?: string }) {
   try {
     // Buscar progresso no progress-service
     const progressData = await fetchFromService(
@@ -179,7 +201,7 @@ async function getEmployeeDashboard(userData: any) {
 }
 
 // Dashboard do Instrutor
-async function getInstructorDashboard(userData: any) {
+async function getInstructorDashboard(userData: { id: string }) {
   try {
     // Buscar cursos do instrutor
     const coursesData = await fetchFromService(
@@ -200,7 +222,7 @@ async function getInstructorDashboard(userData: any) {
     const pendentesCorrecao = assessmentsData?.pendentes || 0;
 
     // Calcular métricas
-    const totalAlunos = cursos.reduce((sum: number, curso: any) => sum + (curso.total_inscricoes || 0), 0);
+    const totalAlunos = cursos.reduce((sum: number, curso: { total_inscricoes?: number }) => sum + (curso.total_inscricoes || 0), 0);
     const taxaConclusaoGeral = progressStats?.taxa_conclusao_geral || 0;
     const avaliacaoMediaGeral = progressStats?.avaliacao_media_geral || 0;
 
@@ -230,7 +252,15 @@ async function getInstructorDashboard(userData: any) {
         avaliacao_media_geral: avaliacaoMediaGeral,
         pendentes_correcao: pendentesCorrecao
       },
-      cursos: cursos.map((curso: any) => ({
+      cursos: cursos.map((curso: { 
+        codigo?: string; 
+        titulo?: string; 
+        total_inscricoes?: number; 
+        total_conclusoes?: number; 
+        taxa_conclusao?: number; 
+        avaliacao_media?: number; 
+        ativo?: boolean 
+      }) => ({
         codigo: curso.codigo,
         titulo: curso.titulo,
         inscritos: curso.total_inscricoes || 0,
@@ -255,7 +285,7 @@ async function getInstructorDashboard(userData: any) {
 }
 
 // Dashboard do Gerente
-async function getManagerDashboard(userData: any) {
+async function getManagerDashboard(userData: { departamento_id?: string; departamento_nome?: string }) {
   try {
     // Buscar dados do departamento
     const departmentStats = await fetchFromService(
@@ -298,7 +328,7 @@ async function getManagerDashboard(userData: any) {
 }
 
 // Dashboard do Administrador
-async function getAdminDashboard(userData: any) {
+async function getAdminDashboard(_userData: Record<string, unknown>) {
   try {
     // Buscar estatísticas gerais de todos os serviços
     const [usersStats, coursesStats, progressStats, assessmentsStats] = await Promise.all([
@@ -360,7 +390,12 @@ async function getAdminDashboard(userData: any) {
         inscricoes_30d: progressStats?.inscricoes_30d || 0,
         avaliacao_media_plataforma: assessmentsStats?.avaliacao_media || 0
       },
-      engajamento_departamentos: departmentEngagement.map((dept: any) => ({
+      engajamento_departamentos: departmentEngagement.map((dept: { 
+        departamento: string; 
+        total_funcionarios: string; 
+        xp_medio: number; 
+        ativos_semana: string 
+      }) => ({
         departamento: dept.departamento,
         total_funcionarios: parseInt(dept.total_funcionarios),
         xp_medio: Math.round(dept.xp_medio || 0),
