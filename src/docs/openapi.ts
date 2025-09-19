@@ -246,6 +246,57 @@ export const openapiSpec = {
         }
       }
     },
+    "/users/v1/funcionarios/dashboard": {
+      "get": {
+        "summary": "Obter dashboard do usuário baseado na role",
+        "tags": ["funcionarios"],
+        "security": [{"bearerAuth": []}],
+        "description": "Retorna dados do dashboard personalizados conforme a role do usuário: ALUNO, INSTRUTOR, GERENTE ou ADMIN",
+        "responses": {
+          "200": {
+            "description": "Dados do dashboard",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {"$ref": "#/components/schemas/DashboardAluno"},
+                    {"$ref": "#/components/schemas/DashboardInstrutor"},
+                    {"$ref": "#/components/schemas/DashboardGerente"},
+                    {"$ref": "#/components/schemas/DashboardAdmin"}
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Erro na requisição",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {"type": "string"}
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/users/v1/reset-password": {
       "post": {
         "summary": "Solicitar reset de senha (público)",
@@ -369,6 +420,124 @@ export const openapiSpec = {
           "email": {"type": "string", "format": "email"},
           "departamento_id": {"type": "string", "nullable": true},
           "cargo_nome": {"type": "string", "nullable": true}
+        }
+      },
+      "DashboardAluno": {
+        "type": "object",
+        "properties": {
+          "tipo_dashboard": {"type": "string", "enum": ["aluno"]},
+          "progressao": {
+            "type": "object",
+            "properties": {
+              "xp_atual": {"type": "integer"},
+              "nivel_atual": {"type": "integer"},
+              "xp_proximo_nivel": {"type": "integer"},
+              "progresso_nivel": {"type": "integer"},
+              "badges_conquistados": {"type": "array", "items": {"type": "object"}}
+            }
+          },
+          "cursos": {
+            "type": "object",
+            "properties": {
+              "em_andamento": {"type": "array", "items": {"type": "object"}},
+              "concluidos": {"type": "array", "items": {"type": "object"}},
+              "recomendados": {"type": "array", "items": {"type": "object"}},
+              "populares": {"type": "array", "items": {"type": "object"}}
+            }
+          },
+          "ranking": {
+            "type": "object",
+            "properties": {
+              "posicao_departamento": {"type": "integer", "nullable": true},
+              "total_departamento": {"type": "integer", "nullable": true},
+              "posicao_geral": {"type": "integer", "nullable": true}
+            }
+          },
+          "atividades_recentes": {"type": "array", "items": {"type": "object"}}
+        }
+      },
+      "DashboardInstrutor": {
+        "type": "object",
+        "properties": {
+          "tipo_dashboard": {"type": "string", "enum": ["instrutor"]},
+          "metricas": {
+            "type": "object",
+            "properties": {
+              "total_cursos": {"type": "integer"},
+              "total_alunos": {"type": "integer"},
+              "taxa_conclusao_geral": {"type": "number"},
+              "avaliacao_media_geral": {"type": "number"},
+              "pendentes_correcao": {"type": "integer"}
+            }
+          },
+          "cursos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "codigo": {"type": "string"},
+                "titulo": {"type": "string"},
+                "inscritos": {"type": "integer"},
+                "concluidos": {"type": "integer"},
+                "taxa_conclusao": {"type": "number"},
+                "avaliacao_media": {"type": "number", "nullable": true},
+                "status": {"type": "string"}
+              }
+            }
+          },
+          "alertas": {"type": "array", "items": {"type": "object"}},
+          "atividades_recentes": {"type": "array", "items": {"type": "object"}}
+        }
+      },
+      "DashboardGerente": {
+        "type": "object",
+        "properties": {
+          "tipo_dashboard": {"type": "string", "enum": ["gerente"]},
+          "departamento": {
+            "type": "object",
+            "properties": {
+              "nome": {"type": "string"},
+              "total_funcionarios": {"type": "integer"},
+              "funcionarios_ativos": {"type": "integer"},
+              "taxa_conclusao_cursos": {"type": "number"},
+              "xp_medio_funcionarios": {"type": "number"}
+            }
+          },
+          "top_performers": {"type": "array", "items": {"type": "object"}},
+          "cursos_departamento": {"type": "array", "items": {"type": "object"}},
+          "alertas": {"type": "array", "items": {"type": "object"}}
+        }
+      },
+      "DashboardAdmin": {
+        "type": "object",
+        "properties": {
+          "tipo_dashboard": {"type": "string", "enum": ["administrador"]},
+          "metricas_gerais": {
+            "type": "object",
+            "properties": {
+              "total_usuarios": {"type": "integer"},
+              "usuarios_ativos_30d": {"type": "integer"},
+              "total_instrutores": {"type": "integer"},
+              "total_cursos": {"type": "integer"},
+              "taxa_conclusao_geral": {"type": "number"},
+              "inscricoes_30d": {"type": "integer"},
+              "avaliacao_media_plataforma": {"type": "number"}
+            }
+          },
+          "engajamento_departamentos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "departamento": {"type": "string"},
+                "total_funcionarios": {"type": "integer"},
+                "xp_medio": {"type": "integer"},
+                "funcionarios_ativos": {"type": "integer"}
+              }
+            }
+          },
+          "cursos_populares": {"type": "array", "items": {"type": "object"}},
+          "alertas": {"type": "array", "items": {"type": "object"}}
         }
       }
     }
