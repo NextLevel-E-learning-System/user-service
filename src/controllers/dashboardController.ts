@@ -1,0 +1,386 @@
+import { Request, Response } from "express";
+import { withClient } from "../config/db.js";
+import { HttpError } from "../utils/httpError.js";
+
+// URLs dos outros microserviços
+const COURSE_SERVICE_URL = process.env.COURSE_SERVICE_URL || 'http://course-service:3333';
+const PROGRESS_SERVICE_URL = process.env.PROGRESS_SERVICE_URL || 'http://progress-service:3333';
+const GAMIFICATION_SERVICE_URL = process.env.GAMIFICATION_SERVICE_URL || 'http://gamification-service:3333';
+const ASSESSMENT_SERVICE_URL = process.env.ASSESSMENT_SERVICE_URL || 'http://assessment-service:3333';
+const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL || 'http://notification-service:3333';
+
+// Helper para fazer chamadas HTTP entre microserviços
+async function fetchFromService(url: string, headers: Record<string, string> = {}) {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers
+      }
+    });
+    
+    if (!response.ok) {
+      console.warn(`[dashboard] Service call failed: ${url} - Status: ${response.status}`);
+      return null;
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`[dashboard] Service call error: ${url}`, error);
+    return null;
+  }
+}
+
+// Buscar dados do usuário logado
+async function getUserData(authUserId: string) {
+  return await withClient(async (c) => {
+    const { rows } = await c.query(`
+      SELECT f.*, d.nome as departamento_nome, c.nome as cargo_nome,
+             COALESCE(array_agg(r.nome) FILTER (WHERE r.nome IS NOT NULL), ARRAY[]::text[]) as roles
+      FROM user_service.funcionarios f
+      LEFT JOIN user_service.departamentos d ON f.departamento_id = d.codigo
+      LEFT JOIN user_service.cargos c ON f.cargo_nome = c.nome
+      LEFT JOIN user_service.user_roles ur ON f.id = ur.user_id AND ur.active = true
+      LEFT JOIN user_service.roles r ON ur.role_id = r.id
+      WHERE f.auth_user_id = $1 AND f.ativo = true
+      GROUP BY f.id, d.nome, c.nome
+    `, [authUserId]);
+    
+    return rows[0] || null;
+  });
+}
+
+// Buscar notificações não lidas
+async function getNotifications(authUserId: string) {
+  const notifications = await fetchFromService(
+    `${NOTIFICATION_SERVICE_URL}/notifications/v1/notificacoes?usuario_id=${authUserId}&lida=false&limit=10`
+  );
+  return notifications?.notificacoes || [];
+}
+
+export const getDashboard = async (req: Request, res: Response) => {
+  try {
+    const authUserId = (req as { user?: { sub: string } }).user?.sub;
+    if (!authUserId) {
+      throw new HttpError(401, 'user_not_authenticated');
+    }
+
+    // Buscar dados do usuário
+    const userData = await getUserData(authUserId);
+    if (!userData) {
+      throw new HttpError(404, 'user_not_found');
+    }
+
+    // Determinar role principal (primeira role ou ALUNO como padrão)
+    const mainRole = (userData.roles && userData.roles.length > 0) ? userData.roles[0] : 'ALUNO';
+
+    // Buscar notificações
+    const notifications = await getNotifications(authUserId);
+    const notificationsList = Array.isArray(notifications) ? notifications : [];
+
+    // Gerar dashboard baseado na role
+    let dashboardData;
+    switch (mainRole) {
+      case 'ADMIN':
+        dashboardData = await getAdminDashboard(userData);
+        break;
+      case 'INSTRUTOR':
+        dashboardData = await getInstructorDashboard(userData);
+        break;
+      case 'GERENTE':
+        dashboardData = await getManagerDashboard(userData);
+        break;
+      default: // ALUNO ou qualquer outra role
+        dashboardData = await getEmployeeDashboard(userData);
+        break;
+    }
+
+    res.json({
+      usuario: {
+        id: userData.id,
+        nome: userData.nome,
+        email: userData.email,
+        departamento: userData.departamento_nome,
+        cargo: userData.cargo_nome,
+        nivel: userData.nivel,
+        xp_total: userData.xp_total,
+        roles: userData.roles || ['ALUNO']
+      },
+      notificacoes_nao_lidas: notificationsList.length,
+      notificacoes: notificationsList.slice(0, 5), // Apenas as 5 mais recentes
+      dashboard: dashboardData
+    });
+
+  } catch (error) {
+    console.error('[dashboard] Error getting dashboard:', error);
+    if (error instanceof HttpError) {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'internal_server_error' });
+  }
+};
+
+// Dashboard do Funcionário/Aluno
+async function getEmployeeDashboard(userData: any) {
+  try {
+    // Buscar progresso no progress-service
+    const progressData = await fetchFromService(
+      `${PROGRESS_SERVICE_URL}/progress/v1/user/${userData.id}/dashboard`
+    );
+
+    // Buscar gamificação
+    const gamificationData = await fetchFromService(
+      `${GAMIFICATION_SERVICE_URL}/gamification/v1/user/${userData.id}/stats`
+    );
+
+    // Buscar catálogo de cursos
+    const catalogData = await fetchFromService(
+      `${COURSE_SERVICE_URL}/courses/v1/catalogo?departamento=${userData.departamento_id}`
+    );
+
+    // Calcular progressão de nível
+    const xpAtual = userData.xp_total || 0;
+    const nivel = Math.floor(xpAtual / 1000) + 1;
+    const xpProximoNivel = nivel * 1000;
+    const progressoNivel = ((xpAtual % 1000) / 1000) * 100;
+
+    return {
+      tipo_dashboard: 'aluno',
+      progressao: {
+        xp_atual: xpAtual,
+        nivel_atual: nivel,
+        xp_proximo_nivel: xpProximoNivel,
+        progresso_nivel: Math.round(progressoNivel),
+        badges_conquistados: gamificationData?.badges || []
+      },
+      cursos: {
+        em_andamento: progressData?.cursos_em_andamento || [],
+        concluidos: progressData?.cursos_concluidos || [],
+        recomendados: catalogData?.cursos_recomendados || [],
+        populares: catalogData?.cursos_populares || []
+      },
+      ranking: {
+        posicao_departamento: gamificationData?.ranking_departamento?.posicao || null,
+        total_departamento: gamificationData?.ranking_departamento?.total || null,
+        posicao_geral: gamificationData?.ranking_geral?.posicao || null
+      },
+      atividades_recentes: progressData?.atividades_recentes || []
+    };
+  } catch (error) {
+    console.error('[dashboard] Error getting employee dashboard:', error);
+    return {
+      tipo_dashboard: 'aluno',
+      progressao: { xp_atual: 0, nivel_atual: 1, progresso_nivel: 0 },
+      cursos: { em_andamento: [], concluidos: [], recomendados: [] },
+      ranking: {},
+      atividades_recentes: []
+    };
+  }
+}
+
+// Dashboard do Instrutor
+async function getInstructorDashboard(userData: any) {
+  try {
+    // Buscar cursos do instrutor
+    const coursesData = await fetchFromService(
+      `${COURSE_SERVICE_URL}/courses/v1/instructor/${userData.id}/courses`
+    );
+
+    // Buscar avaliações pendentes
+    const assessmentsData = await fetchFromService(
+      `${ASSESSMENT_SERVICE_URL}/assessments/v1/instructor/${userData.id}/pending`
+    );
+
+    // Buscar estatísticas de progresso
+    const progressStats = await fetchFromService(
+      `${PROGRESS_SERVICE_URL}/progress/v1/instructor/${userData.id}/stats`
+    );
+
+    const cursos = coursesData?.cursos || [];
+    const pendentesCorrecao = assessmentsData?.pendentes || 0;
+
+    // Calcular métricas
+    const totalAlunos = cursos.reduce((sum: number, curso: any) => sum + (curso.total_inscricoes || 0), 0);
+    const taxaConclusaoGeral = progressStats?.taxa_conclusao_geral || 0;
+    const avaliacaoMediaGeral = progressStats?.avaliacao_media_geral || 0;
+
+    // Gerar alertas
+    const alertas = [];
+    if (taxaConclusaoGeral < 70) {
+      alertas.push({
+        tipo: 'Taxa de conclusão baixa',
+        descricao: `Taxa geral de ${taxaConclusaoGeral}% está abaixo do ideal (70%)`,
+        prioridade: 'alta'
+      });
+    }
+    if (pendentesCorrecao > 10) {
+      alertas.push({
+        tipo: 'Muitas avaliações pendentes',
+        descricao: `${pendentesCorrecao} avaliações aguardando correção`,
+        prioridade: 'media'
+      });
+    }
+
+    return {
+      tipo_dashboard: 'instrutor',
+      metricas: {
+        total_cursos: cursos.length,
+        total_alunos: totalAlunos,
+        taxa_conclusao_geral: taxaConclusaoGeral,
+        avaliacao_media_geral: avaliacaoMediaGeral,
+        pendentes_correcao: pendentesCorrecao
+      },
+      cursos: cursos.map((curso: any) => ({
+        codigo: curso.codigo,
+        titulo: curso.titulo,
+        inscritos: curso.total_inscricoes || 0,
+        concluidos: curso.total_conclusoes || 0,
+        taxa_conclusao: curso.taxa_conclusao || 0,
+        avaliacao_media: curso.avaliacao_media || null,
+        status: curso.ativo ? 'Ativo' : 'Inativo'
+      })),
+      alertas,
+      atividades_recentes: progressStats?.atividades_recentes || []
+    };
+  } catch (error) {
+    console.error('[dashboard] Error getting instructor dashboard:', error);
+    return {
+      tipo_dashboard: 'instrutor',
+      metricas: { total_cursos: 0, total_alunos: 0 },
+      cursos: [],
+      alertas: [],
+      atividades_recentes: []
+    };
+  }
+}
+
+// Dashboard do Gerente
+async function getManagerDashboard(userData: any) {
+  try {
+    // Buscar dados do departamento
+    const departmentStats = await fetchFromService(
+      `${PROGRESS_SERVICE_URL}/progress/v1/department/${userData.departamento_id}/stats`
+    );
+
+    // Buscar funcionários do departamento
+    const departmentUsers = await withClient(async (c) => {
+      const { rows } = await c.query(`
+        SELECT COUNT(*) as total_funcionarios,
+               COUNT(CASE WHEN u.ultimo_acesso > now() - interval '30 days' THEN 1 END) as funcionarios_ativos
+        FROM user_service.funcionarios f
+        JOIN auth_service.usuarios u ON f.auth_user_id = u.id
+        WHERE f.departamento_id = $1 AND f.ativo = true
+      `, [userData.departamento_id]);
+      return rows[0];
+    });
+
+    return {
+      tipo_dashboard: 'gerente',
+      departamento: {
+        nome: userData.departamento_nome,
+        total_funcionarios: departmentUsers?.total_funcionarios || 0,
+        funcionarios_ativos: departmentUsers?.funcionarios_ativos || 0,
+        taxa_conclusao_cursos: departmentStats?.taxa_conclusao || 0,
+        xp_medio_funcionarios: departmentStats?.xp_medio || 0
+      },
+      top_performers: departmentStats?.top_performers || [],
+      cursos_departamento: departmentStats?.cursos_populares || [],
+      alertas: departmentStats?.alertas || []
+    };
+  } catch (error) {
+    console.error('[dashboard] Error getting manager dashboard:', error);
+    return {
+      tipo_dashboard: 'gerente',
+      departamento: { nome: userData.departamento_nome },
+      alertas: []
+    };
+  }
+}
+
+// Dashboard do Administrador
+async function getAdminDashboard(userData: any) {
+  try {
+    // Buscar estatísticas gerais de todos os serviços
+    const [usersStats, coursesStats, progressStats, assessmentsStats] = await Promise.all([
+      withClient(async (c) => {
+        const { rows } = await c.query(`
+          SELECT 
+            COUNT(*) as total_usuarios,
+            COUNT(CASE WHEN u.ultimo_acesso > now() - interval '30 days' THEN 1 END) as usuarios_ativos_30d,
+            COUNT(CASE WHEN ur.role_id = (SELECT id FROM user_service.roles WHERE nome = 'INSTRUTOR') THEN 1 END) as total_instrutores
+          FROM user_service.funcionarios f
+          JOIN auth_service.usuarios u ON f.auth_user_id = u.id
+          LEFT JOIN user_service.user_roles ur ON f.id = ur.user_id AND ur.active = true
+          WHERE f.ativo = true
+        `);
+        return rows[0];
+      }),
+      fetchFromService(`${COURSE_SERVICE_URL}/courses/v1/admin/stats`),
+      fetchFromService(`${PROGRESS_SERVICE_URL}/progress/v1/admin/stats`),
+      fetchFromService(`${ASSESSMENT_SERVICE_URL}/assessments/v1/admin/stats`)
+    ]);
+
+    // Buscar engajamento por departamento
+    const departmentEngagement = await withClient(async (c) => {
+      const { rows } = await c.query(`
+        SELECT 
+          d.nome as departamento,
+          COUNT(f.id) as total_funcionarios,
+          AVG(f.xp_total) as xp_medio,
+          COUNT(CASE WHEN u.ultimo_acesso > now() - interval '7 days' THEN 1 END) as ativos_semana
+        FROM user_service.departamentos d
+        LEFT JOIN user_service.funcionarios f ON d.codigo = f.departamento_id AND f.ativo = true
+        LEFT JOIN auth_service.usuarios u ON f.auth_user_id = u.id
+        WHERE d.ativo = true
+        GROUP BY d.codigo, d.nome
+        ORDER BY xp_medio DESC NULLS LAST
+      `);
+      return rows;
+    });
+
+    // Gerar alertas do sistema
+    const alertas = [];
+    const taxaConclusaoGeral = progressStats?.taxa_conclusao_geral || 0;
+    if (taxaConclusaoGeral < 70) {
+      alertas.push({
+        tipo: 'Taxa de conclusão baixa',
+        descricao: `Taxa geral de ${taxaConclusaoGeral}% está abaixo do ideal`,
+        prioridade: 'alta'
+      });
+    }
+
+    return {
+      tipo_dashboard: 'administrador',
+      metricas_gerais: {
+        total_usuarios: usersStats?.total_usuarios || 0,
+        usuarios_ativos_30d: usersStats?.usuarios_ativos_30d || 0,
+        total_instrutores: usersStats?.total_instrutores || 0,
+        total_cursos: coursesStats?.total_cursos || 0,
+        taxa_conclusao_geral: taxaConclusaoGeral,
+        inscricoes_30d: progressStats?.inscricoes_30d || 0,
+        avaliacao_media_plataforma: assessmentsStats?.avaliacao_media || 0
+      },
+      engajamento_departamentos: departmentEngagement.map((dept: any) => ({
+        departamento: dept.departamento,
+        total_funcionarios: parseInt(dept.total_funcionarios),
+        xp_medio: Math.round(dept.xp_medio || 0),
+        funcionarios_ativos: parseInt(dept.ativos_semana)
+      })),
+      cursos_populares: coursesStats?.cursos_populares || [],
+      alertas
+    };
+  } catch (error) {
+    console.error('[dashboard] Error getting admin dashboard:', error);
+    return {
+      tipo_dashboard: 'administrador',
+      metricas_gerais: {
+        total_usuarios: 0,
+        usuarios_ativos_30d: 0,
+        total_cursos: 0,
+        taxa_conclusao_geral: 0
+      },
+      engajamento_departamentos: [],
+      alertas: []
+    };
+  }
+}

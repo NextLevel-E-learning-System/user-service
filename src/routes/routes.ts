@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as deptCtrl from "../controllers/departamentoController.js";
 import * as cargoCtrl from "../controllers/cargoController.js";
 import * as funcCtrl from "../controllers/funcionarioController.js";
+import * as dashboardCtrl from "../controllers/dashboardController.js";
  
 export const publicRouter = Router();
 publicRouter.get("/departamentos", deptCtrl.listDepartamentos);
@@ -22,3 +23,4 @@ cargoRouter.delete("/:codigo", cargoCtrl.deleteCargo);
 export const funcionarioRouter = Router();
 funcionarioRouter.get("/", funcCtrl.listFuncionarios);
 funcionarioRouter.put("/:id/role", funcCtrl.updateFuncionarioRole);
+funcionarioRouter.get("/dashboard", dashboardCtrl.getDashboard);
