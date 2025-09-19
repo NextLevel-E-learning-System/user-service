@@ -2,8 +2,8 @@ export const openapiSpec = {
   "openapi": "3.0.3",
   "info": {
     "title": "User Service API",
-    "version": "2.0.0",
-    "description": "Serviço de usuários com departamentos, cargos e funcionários. Rotas REAIS implementadas."
+    "version": "2.1.0",
+    "description": "Serviço de usuários com departamentos, cargos e funcionários. Endpoint /funcionarios/dashboard retorna dados completos do usuário e dashboard em uma única resposta."
   },
   "paths": {
     "/users/v1/departamentos": {
@@ -248,34 +248,83 @@ export const openapiSpec = {
     },
     "/users/v1/funcionarios/dashboard": {
       "get": {
-        "summary": "Obter dashboard do usuário baseado na role",
+        "summary": "Obter dashboard completo do usuário",
         "tags": ["funcionarios"],
         "security": [{"bearerAuth": []}],
-        "description": "Retorna dados do dashboard personalizados conforme a role do usuário: ALUNO, INSTRUTOR, GERENTE ou ADMIN",
+        "description": "Retorna dados completos do usuário, notificações e dashboard personalizado conforme a role: ALUNO, INSTRUTOR, GERENTE ou ADMIN",
         "responses": {
           "200": {
-            "description": "Dados do dashboard",
+            "description": "Dados completos do dashboard e usuário",
             "content": {
               "application/json": {
-                "schema": {
-                  "oneOf": [
-                    {"$ref": "#/components/schemas/DashboardAluno"},
-                    {"$ref": "#/components/schemas/DashboardInstrutor"},
-                    {"$ref": "#/components/schemas/DashboardGerente"},
-                    {"$ref": "#/components/schemas/DashboardAdmin"}
-                  ]
+                "schema": {"$ref": "#/components/schemas/DashboardResponse"},
+                "example": {
+                  "usuario": {
+                    "id": "123e4567-e89b-12d3-a456-426614174000",
+                    "nome": "João Silva",
+                    "email": "joao.silva@empresa.com",
+                    "departamento": "Tecnologia",
+                    "cargo": "Desenvolvedor",
+                    "nivel": "Intermediário",
+                    "xp_total": 1250,
+                    "roles": ["ALUNO"]
+                  },
+                  "notificacoes_nao_lidas": 3,
+                  "notificacoes": [
+                    {
+                      "id": "notif-1",
+                      "titulo": "Novo curso disponível",
+                      "descricao": "Angular Avançado está disponível para inscrição",
+                      "data_criacao": "2025-09-19T10:30:00Z"
+                    }
+                  ],
+                  "dashboard": {
+                    "tipo_dashboard": "aluno",
+                    "progressao": {
+                      "xp_atual": 1250,
+                      "nivel_atual": 3,
+                      "xp_proximo_nivel": 2000,
+                      "progresso_nivel": 62.5,
+                      "badges_conquistados": []
+                    },
+                    "cursos": {
+                      "em_andamento": [],
+                      "concluidos": [],
+                      "recomendados": [],
+                      "populares": []
+                    },
+                    "ranking": {
+                      "posicao_departamento": 5,
+                      "total_departamento": 20,
+                      "posicao_geral": 45
+                    },
+                    "atividades_recentes": []
+                  }
                 }
               }
             }
           },
-          "400": {
-            "description": "Erro na requisição",
+          "401": {
+            "description": "Usuário não autenticado",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {"type": "string"}
+                    "error": {"type": "string", "example": "user_not_authenticated"}
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuário não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {"type": "string", "example": "user_not_found"}
                   }
                 }
               }
@@ -288,7 +337,7 @@ export const openapiSpec = {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {"type": "string"}
+                    "error": {"type": "string", "example": "internal_server_error"}
                   }
                 }
               }
@@ -421,6 +470,50 @@ export const openapiSpec = {
           "departamento_id": {"type": "string", "nullable": true},
           "cargo_nome": {"type": "string", "nullable": true}
         }
+      },
+      "DashboardResponse": {
+        "type": "object",
+        "description": "Resposta completa do endpoint dashboard incluindo dados do usuário, notificações e dashboard específico da role",
+        "properties": {
+          "usuario": {
+            "type": "object",
+            "description": "Informações básicas do usuário autenticado",
+            "properties": {
+              "id": {"type": "string", "format": "uuid"},
+              "nome": {"type": "string"},
+              "email": {"type": "string", "format": "email"},
+              "departamento": {"type": "string", "nullable": true, "description": "Nome do departamento"},
+              "cargo": {"type": "string", "nullable": true, "description": "Nome do cargo"},
+              "nivel": {"type": "string", "description": "Nível atual do usuário"},
+              "xp_total": {"type": "integer", "description": "Total de XP acumulado"},
+              "roles": {
+                "type": "array",
+                "items": {"type": "string", "enum": ["ALUNO", "INSTRUTOR", "GERENTE", "ADMIN"]},
+                "description": "Roles do usuário no sistema"
+              }
+            },
+            "required": ["id", "nome", "email", "nivel", "xp_total", "roles"]
+          },
+          "notificacoes_nao_lidas": {
+            "type": "integer",
+            "description": "Número de notificações não lidas"
+          },
+          "notificacoes": {
+            "type": "array",
+            "items": {"type": "object"},
+            "description": "Lista das 5 notificações mais recentes"
+          },
+          "dashboard": {
+            "oneOf": [
+              {"$ref": "#/components/schemas/DashboardAluno"},
+              {"$ref": "#/components/schemas/DashboardInstrutor"},
+              {"$ref": "#/components/schemas/DashboardGerente"},
+              {"$ref": "#/components/schemas/DashboardAdmin"}
+            ],
+            "description": "Dados específicos do dashboard baseado na role do usuário"
+          }
+        },
+        "required": ["usuario", "notificacoes_nao_lidas", "notificacoes", "dashboard"]
       },
       "DashboardAluno": {
         "type": "object",
