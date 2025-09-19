@@ -17,8 +17,21 @@ export const registerFuncionario = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Nome e email são obrigatórios" });
     }
 
-  // Agora o auth-service gera a senha e devolve
-  const authUser = await createAuthUser(email);
+    // IMPORTANTE: Validar CPF ANTES de criar usuário no auth-service
+    if (cpf) {
+      await withClient(async (c) => {
+        const { rows: existingCpf } = await c.query(
+          `SELECT id FROM user_service.funcionarios WHERE cpf = $1 AND ativo = true`,
+          [cpf]
+        );
+        if (existingCpf.length > 0) {
+          throw new Error('cpf_ja_cadastrado');
+        }
+      });
+    }
+
+    // Só agora criar usuário no auth-service (que enviará emails)
+    const authUser = await createAuthUser(email);
 
     await withClient(async (c) => {
       const { rows } = await c.query(`
@@ -35,13 +48,27 @@ export const registerFuncionario = async (req: Request, res: Response) => {
         [funcionario.id, roleRes.rows[0].id, null]
       );
 
-  // Não temos mais a senha aqui; notification-service enviará email usando evento do auth-service
-  await emitUserCreated(funcionario.email, undefined as unknown as string, funcionario.id, funcionario.nome);
+      // Emitir evento adicional do user-service (se necessário)
+      await emitUserCreated(funcionario.email, undefined as unknown as string, funcionario.id, funcionario.nome);
 
       res.status(201).json(funcionario);
     });
   } catch (error) {
     console.error('Erro ao registrar funcionário:', error);
+    
+    // Tratar erros específicos
+    if (error instanceof Error) {
+      if (error.message === 'cpf_ja_cadastrado') {
+        return res.status(409).json({ error: 'cpf_ja_cadastrado', message: 'CPF já está cadastrado no sistema' });
+      }
+      if (error.message === 'email_ja_cadastrado') {
+        return res.status(409).json({ error: 'email_ja_cadastrado', message: 'Email já está cadastrado no sistema' });
+      }
+      if (error.message === 'dominio_nao_permitido') {
+        return res.status(400).json({ error: 'dominio_nao_permitido', message: 'Domínio de email não permitido' });
+      }
+    }
+    
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     res.status(500).json({ error: 'Erro interno do servidor', details: errorMessage });
   }
