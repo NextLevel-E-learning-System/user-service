@@ -10,11 +10,17 @@ export async function hashPassword(pwd: string) {
 
 export const registerFuncionario = async (req: Request, res: Response) => {
   try {
-    const { nome, email, cpf, departamento_id, cargo_nome } = req.body;
+    const { nome, email, cpf, departamento_id, cargo_nome, role = 'ALUNO' } = req.body;
     
     // Validação básica
     if (!nome || !email) {
       return res.status(400).json({ error: "Nome e email são obrigatórios" });
+    }
+
+    // Validar role
+    const validRoles = ['ADMIN', 'INSTRUTOR', 'GERENTE', 'ALUNO'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Role inválida. Use: ADMIN, INSTRUTOR, GERENTE ou ALUNO' });
     }
 
     // IMPORTANTE: Validar CPF ANTES de criar usuário no auth-service
@@ -30,23 +36,16 @@ export const registerFuncionario = async (req: Request, res: Response) => {
       });
     }
 
-    // Só agora criar usuário no auth-service (que enviará emails)
-    const authUser = await createAuthUser(email);
+    // Criar usuário no auth-service (que enviará emails)
+    await createAuthUser(email);
 
     await withClient(async (c) => {
       const { rows } = await c.query(`
         INSERT INTO user_service.funcionarios
-        (nome, email, cpf, departamento_id, cargo_nome)
-        VALUES ($1,$2,$3,$4,$5) RETURNING *
-      `, [nome, email, cpf, departamento_id, cargo_nome]);
+        (nome, email, cpf, departamento_id, cargo_nome, role)
+        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *
+      `, [nome, email, cpf, departamento_id, cargo_nome, role]);
       const funcionario = rows[0];
-
-      const roleRes = await c.query(`SELECT id FROM user_service.roles WHERE nome='ALUNO'`);
-      await c.query(
-        `INSERT INTO user_service.funcionario_roles(funcionario_id, role_id, granted_by)
-         VALUES ($1,$2,$3)`,
-        [funcionario.id, roleRes.rows[0].id, null]
-      );
 
       // Emitir evento adicional do user-service (se necessário)
       await emitUserCreated(funcionario.email, undefined as unknown as string, funcionario.id, funcionario.nome);
@@ -83,31 +82,37 @@ export const listFuncionarios = async (_req: Request, res: Response) => {
 
 export const updateFuncionarioRole = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { role_nome } = req.body;
+  const { role } = req.body;
   const actor_id = (req as Request & { userId: string }).userId;
 
+  // Validar role
+  const validRoles = ['ADMIN', 'INSTRUTOR', 'GERENTE', 'ALUNO'];
+  if (!validRoles.includes(role)) {
+    return res.status(400).json({ error: 'Role inválida. Use: ADMIN, INSTRUTOR, GERENTE ou ALUNO' });
+  }
+
   await withClient(async (c) => {
-    const role = (await c.query(`SELECT id FROM user_service.roles WHERE nome=$1`, [role_nome])).rows[0];
-    if (!role) return res.status(404).json({ error: 'Role não encontrada' });
-
+    // Atualizar role diretamente na tabela funcionarios
     const { rows } = await c.query(`
-      INSERT INTO user_service.funcionario_roles(funcionario_id, role_id, granted_by)
-      VALUES ($1,$2,$3) ON CONFLICT (funcionario_id, role_id) DO UPDATE SET active=true, granted_by=$3 RETURNING *
-    `, [id, role.id, actor_id]);
+      UPDATE user_service.funcionarios 
+      SET role = $1, atualizado_em = NOW() 
+      WHERE id = $2 AND ativo = true 
+      RETURNING *
+    `, [role, id]);
 
-    await c.query(
-      `INSERT INTO user_service.user_role_history(user_role_id, user_id, role_id, action, actor_id)
-       VALUES ($1,$2,$3,'GRANTED',$4)`,
-      [rows[0].id, id, role.id, actor_id]
-    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Funcionário não encontrado' });
+    }
 
-    await emitUserRoleChanged(id, role_nome);
+    await emitUserRoleChanged(id, role);
 
-    res.json(rows[0]);
+    res.json({ 
+      funcionario: rows[0], 
+      message: `Role atualizada para ${role}`,
+      granted_by: actor_id 
+    });
   });
-};
-
-export const requestPasswordReset = async (req: Request, res: Response) => {
+};export const requestPasswordReset = async (req: Request, res: Response) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: "email_obrigatorio" });
 

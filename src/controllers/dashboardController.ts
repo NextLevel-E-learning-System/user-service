@@ -34,15 +34,11 @@ async function fetchFromService(url: string, headers: Record<string, string> = {
 async function getUserData(funcionarioId: string) {
   return await withClient(async (c) => {
     const { rows } = await c.query(`
-      SELECT f.*, d.nome as departamento_nome, c.nome as cargo_nome,
-             COALESCE(array_agg(r.nome) FILTER (WHERE r.nome IS NOT NULL), ARRAY[]::text[]) as roles
+      SELECT f.*, d.nome as departamento_nome, c.nome as cargo_nome
       FROM user_service.funcionarios f
       LEFT JOIN user_service.departamentos d ON f.departamento_id = d.codigo
       LEFT JOIN user_service.cargos c ON f.cargo_nome = c.nome
-      LEFT JOIN user_service.funcionario_roles ur ON f.id = ur.funcionario_id AND ur.active = true
-      LEFT JOIN user_service.roles r ON ur.role_id = r.id
       WHERE f.id = $1 AND f.ativo = true
-      GROUP BY f.id, d.nome, c.nome
     `, [funcionarioId]);
     
     return rows[0] || null;
@@ -84,8 +80,8 @@ export const getDashboard = async (req: Request, res: Response) => {
       throw new HttpError(404, 'user_not_found');
     }
 
-    // Determinar role principal (primeira role ou ALUNO como padrão)
-    const mainRole = (userData.roles && userData.roles.length > 0) ? userData.roles[0] : 'ALUNO';
+    // Determinar role principal (direto do campo role)
+    const mainRole = userData.role || 'ALUNO';
 
     // Gerar dashboard baseado na role
     let dashboardData;
@@ -284,10 +280,9 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
         SELECT 
           COUNT(*) as total_usuarios,
           COUNT(CASE WHEN u.ultimo_acesso > now() - interval '30 days' THEN 1 END) as usuarios_ativos_30d,
-          COUNT(CASE WHEN ur.role_id = (SELECT id FROM user_service.roles WHERE nome = 'INSTRUTOR') THEN 1 END) as total_instrutores
+          COUNT(CASE WHEN f.role = 'INSTRUTOR' THEN 1 END) as total_instrutores
         FROM user_service.funcionarios f
         JOIN auth_service.usuarios u ON f.id = u.funcionario_id
-        LEFT JOIN user_service.funcionario_roles ur ON f.id = ur.funcionario_id AND ur.active = true
         WHERE f.ativo = true AND f.departamento_id = $1
       `, [userData.departamento_id]);
       return rows[0];
@@ -382,10 +377,9 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
           SELECT 
             COUNT(*) as total_usuarios,
             COUNT(CASE WHEN u.ultimo_acesso > now() - interval '30 days' THEN 1 END) as usuarios_ativos_30d,
-            COUNT(CASE WHEN ur.role_id = (SELECT id FROM user_service.roles WHERE nome = 'INSTRUTOR') THEN 1 END) as total_instrutores
+            COUNT(CASE WHEN f.role = 'INSTRUTOR' THEN 1 END) as total_instrutores
           FROM user_service.funcionarios f
           JOIN auth_service.usuarios u ON f.id = u.funcionario_id
-          LEFT JOIN user_service.funcionario_roles ur ON f.id = ur.funcionario_id AND ur.active = true
           WHERE f.ativo = true
         `);
         return rows[0];
