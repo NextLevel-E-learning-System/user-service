@@ -110,7 +110,7 @@ export const getDashboard = async (req: Request, res: Response) => {
         cargo: userData.cargo_nome,
         nivel: userData.nivel,
         xp_total: userData.xp_total,
-        roles: userData.roles || ['ALUNO']
+        roles: [userData.role || 'ALUNO']
       },
       dashboard: dashboardData
     });
