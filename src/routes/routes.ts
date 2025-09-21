@@ -11,7 +11,7 @@ publicRouter.post("/register", funcCtrl.registerFuncionario); // auto-cadastro A
 publicRouter.post("/reset-password", funcCtrl.requestPasswordReset);
 
 export const departamentoRouter = Router();
-departamentoRouter.get("/", deptCtrl.listAllDepartamentos);
+departamentoRouter.get("/admin", deptCtrl.listAllDepartamentos); // Rota administrativa - todos os departamentos
 departamentoRouter.get("/:codigo", deptCtrl.getDepartamento);
 departamentoRouter.post("/", deptCtrl.createDepartamento);
 departamentoRouter.put("/:codigo", deptCtrl.updateDepartamento);
