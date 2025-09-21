@@ -85,14 +85,21 @@ export const createDepartamento = async (req: Request, res: Response) => {
 
 export const updateDepartamento = async (req: Request, res: Response) => {
   const { codigo } = req.params;
-  const { nome, descricao, gestor_funcionario_id } = req.body;
+  const { nome, descricao, gestor_funcionario_id, ativo } = req.body;
   await withClient(async (c) => {
-    const { rows } = await c.query(
-      `UPDATE user_service.departamentos
-       SET nome=$1, descricao=$2, gestor_funcionario_id=$3, atualizado_em=now()
-       WHERE codigo=$4 RETURNING *`,
-      [nome, descricao, gestor_funcionario_id, codigo]
-    );
+    let query = `UPDATE user_service.departamentos
+       SET nome=$1, descricao=$2, gestor_funcionario_id=$3, atualizado_em=now()`;
+    const params = [nome, descricao, gestor_funcionario_id];
+
+    // Se estiver ativando o departamento, limpar a data de inativação
+    if (ativo === true) {
+      query += `, ativo=true, inactivated_at=null`;
+    }
+
+    query += ` WHERE codigo=$${params.length + 1} RETURNING *`;
+    params.push(codigo);
+
+    const { rows } = await c.query(query, params);
     res.json(rows[0]);
   });
 };
