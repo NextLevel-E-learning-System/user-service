@@ -278,12 +278,13 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
     const departmentUsers = await withClient(async (c) => {
       const { rows } = await c.query(`
         SELECT 
-          COUNT(*) as total_usuarios,
-          COUNT(CASE WHEN u.ultimo_acesso > now() - interval '30 days' THEN 1 END) as usuarios_ativos_30d,
+          COUNT(*) as total_funcionarios,
+          COUNT(CASE WHEN f.ativo = true THEN 1 END) as funcionarios_ativos,
+          COUNT(CASE WHEN f.ativo = true AND f.role = 'ALUNO' THEN 1 END) as alunos_ativos,
           COUNT(CASE WHEN f.role = 'INSTRUTOR' THEN 1 END) as total_instrutores
         FROM user_service.funcionarios f
         JOIN auth_service.usuarios u ON f.id = u.funcionario_id
-        WHERE f.ativo = true AND f.departamento_id = $1
+        WHERE f.departamento_id = $1
       `, [userData.departamento_id]);
       return rows[0];
     });
@@ -297,13 +298,13 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
     const departmentEngagement = await withClient(async (c) => {
       const { rows } = await c.query(`
         SELECT 
-          d.nome as departamento,
+          d.codigo,
+          d.nome,
           COUNT(f.id) as total_funcionarios,
           AVG(f.xp_total) as xp_medio,
-          COUNT(CASE WHEN u.ultimo_acesso > now() - interval '7 days' THEN 1 END) as ativos_semana
+          COUNT(CASE WHEN f.ativo = true AND f.role = 'ALUNO' THEN 1 END) as funcionarios_ativos
         FROM user_service.departamentos d
-        LEFT JOIN user_service.funcionarios f ON d.codigo = f.departamento_id AND f.ativo = true
-        LEFT JOIN auth_service.usuarios u ON f.id = u.funcionario_id
+        LEFT JOIN user_service.funcionarios f ON d.codigo = f.departamento_id
         WHERE d.codigo = $1 AND d.ativo = true
         GROUP BY d.codigo, d.nome
       `, [userData.departamento_id]);
@@ -324,8 +325,9 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
     return {
       tipo_dashboard: 'administrador', // Mesmo tipo que ADMIN para compatibilidade
       metricas_gerais: {
-        total_usuarios: departmentUsers?.total_usuarios || 0,
-        usuarios_ativos_30d: departmentUsers?.usuarios_ativos_30d || 0,
+        total_funcionarios: departmentUsers?.total_funcionarios || 0,
+        funcionarios_ativos: departmentUsers?.funcionarios_ativos || 0,
+        alunos_ativos: departmentUsers?.alunos_ativos || 0,
         total_instrutores: departmentUsers?.total_instrutores || 0,
         total_cursos: departmentCourses?.total_cursos || 0,
         taxa_conclusao_geral: taxaConclusao,
@@ -333,15 +335,17 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
         avaliacao_media_plataforma: departmentStats?.avaliacao_media || 0
       },
       engajamento_departamentos: departmentEngagement.map((dept: { 
-        departamento: string; 
+        codigo: string;
+        nome: string;
         total_funcionarios: string; 
         xp_medio: number; 
-        ativos_semana: string 
+        funcionarios_ativos: string 
       }) => ({
-        departamento: dept.departamento,
+        codigo: dept.codigo,
+        nome: dept.nome,
         total_funcionarios: parseInt(dept.total_funcionarios),
         xp_medio: Math.round(dept.xp_medio || 0),
-        funcionarios_ativos: parseInt(dept.ativos_semana)
+        funcionarios_ativos: parseInt(dept.funcionarios_ativos)
       })),
       cursos_populares: departmentCourses?.cursos_populares || [],
       alertas,
@@ -375,12 +379,12 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
       withClient(async (c) => {
         const { rows } = await c.query(`
           SELECT 
-            COUNT(*) as total_usuarios,
-            COUNT(CASE WHEN u.ultimo_acesso > now() - interval '30 days' THEN 1 END) as usuarios_ativos_30d,
+            COUNT(*) as total_funcionarios,
+            COUNT(CASE WHEN f.ativo = true THEN 1 END) as funcionarios_ativos,
+            COUNT(CASE WHEN f.ativo = true AND f.role = 'ALUNO' THEN 1 END) as alunos_ativos,
             COUNT(CASE WHEN f.role = 'INSTRUTOR' THEN 1 END) as total_instrutores
           FROM user_service.funcionarios f
           JOIN auth_service.usuarios u ON f.id = u.funcionario_id
-          WHERE f.ativo = true
         `);
         return rows[0];
       }),
@@ -393,13 +397,13 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
     const departmentEngagement = await withClient(async (c) => {
       const { rows } = await c.query(`
         SELECT 
-          d.nome as departamento,
+          d.codigo,
+          d.nome,
           COUNT(f.id) as total_funcionarios,
           AVG(f.xp_total) as xp_medio,
-          COUNT(CASE WHEN u.ultimo_acesso > now() - interval '7 days' THEN 1 END) as ativos_semana
+          COUNT(CASE WHEN f.ativo = true AND f.role = 'ALUNO' THEN 1 END) as funcionarios_ativos
         FROM user_service.departamentos d
-        LEFT JOIN user_service.funcionarios f ON d.codigo = f.departamento_id AND f.ativo = true
-        LEFT JOIN auth_service.usuarios u ON f.id = u.funcionario_id
+        LEFT JOIN user_service.funcionarios f ON d.codigo = f.departamento_id
         WHERE d.ativo = true
         GROUP BY d.codigo, d.nome
         ORDER BY xp_medio DESC NULLS LAST
@@ -421,8 +425,9 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
     return {
       tipo_dashboard: 'administrador',
       metricas_gerais: {
-        total_usuarios: usersStats?.total_usuarios || 0,
-        usuarios_ativos_30d: usersStats?.usuarios_ativos_30d || 0,
+        total_funcionarios: usersStats?.total_funcionarios || 0,
+        funcionarios_ativos: usersStats?.funcionarios_ativos || 0,
+        alunos_ativos: usersStats?.alunos_ativos || 0,
         total_instrutores: usersStats?.total_instrutores || 0,
         total_cursos: coursesStats?.total_cursos || 0,
         taxa_conclusao_geral: taxaConclusaoGeral,
@@ -430,15 +435,17 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
         avaliacao_media_plataforma: assessmentsStats?.avaliacao_media || 0
       },
       engajamento_departamentos: departmentEngagement.map((dept: { 
-        departamento: string; 
+        codigo: string;
+        nome: string;
         total_funcionarios: string; 
         xp_medio: number; 
-        ativos_semana: string 
+        funcionarios_ativos: string 
       }) => ({
-        departamento: dept.departamento,
+        codigo: dept.codigo,
+        nome: dept.nome,
         total_funcionarios: parseInt(dept.total_funcionarios),
         xp_medio: Math.round(dept.xp_medio || 0),
-        funcionarios_ativos: parseInt(dept.ativos_semana)
+        funcionarios_ativos: parseInt(dept.funcionarios_ativos)
       })),
       cursos_populares: coursesStats?.cursos_populares || [],
       alertas
