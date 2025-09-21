@@ -228,7 +228,11 @@ export const openapiSpec = {
                 "type": "object",
                 "required": ["role"],
                 "properties": {
-                  "role": {"type": "string", "enum": ["FUNCIONARIO", "INSTRUTOR", "ADMIN"]}
+                  "role": {
+                    "type": "string", 
+                    "enum": ["ADMIN", "INSTRUTOR", "GERENTE", "ALUNO"],
+                    "description": "Nova role do funcionário"
+                  }
                 }
               }
             }
@@ -442,6 +446,12 @@ export const openapiSpec = {
           "email": {"type": "string", "format": "email"},
           "departamento_id": {"type": "string", "nullable": true},
           "cargo_nome": {"type": "string", "nullable": true},
+          "role": {
+            "type": "string", 
+            "enum": ["ADMIN", "INSTRUTOR", "GERENTE", "ALUNO"],
+            "default": "ALUNO",
+            "description": "Role/função do funcionário no sistema"
+          },
           "xp_total": {"type": "integer", "default": 0},
           "nivel": {"type": "string", "default": "Iniciante"},
           "ativo": {"type": "boolean", "default": true},
@@ -458,7 +468,13 @@ export const openapiSpec = {
           "nome": {"type": "string"},
           "email": {"type": "string", "format": "email"},
           "departamento_id": {"type": "string", "nullable": true},
-          "cargo_nome": {"type": "string", "nullable": true}
+          "cargo_nome": {"type": "string", "nullable": true},
+          "role": {
+            "type": "string", 
+            "enum": ["ADMIN", "INSTRUTOR", "GERENTE", "ALUNO"],
+            "default": "ALUNO",
+            "description": "Role/função do funcionário no sistema"
+          }
         }
       },
       "DashboardResponse": {
