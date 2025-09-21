@@ -437,7 +437,6 @@ export const openapiSpec = {
         "type": "object",
         "properties": {
           "id": {"type": "string", "format": "uuid"},
-          "auth_user_id": {"type": "string", "format": "uuid", "nullable": true},
           "cpf": {"type": "string", "nullable": true},
           "nome": {"type": "string"},
           "email": {"type": "string", "format": "email"},

@@ -36,14 +36,14 @@ export const registerFuncionario = async (req: Request, res: Response) => {
     await withClient(async (c) => {
       const { rows } = await c.query(`
         INSERT INTO user_service.funcionarios
-        (auth_user_id, nome, email, cpf, departamento_id, cargo_nome)
-        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *
-      `, [authUser.id, nome, email, cpf, departamento_id, cargo_nome]);
+        (nome, email, cpf, departamento_id, cargo_nome)
+        VALUES ($1,$2,$3,$4,$5) RETURNING *
+      `, [nome, email, cpf, departamento_id, cargo_nome]);
       const funcionario = rows[0];
 
       const roleRes = await c.query(`SELECT id FROM user_service.roles WHERE nome='ALUNO'`);
       await c.query(
-        `INSERT INTO user_service.user_roles(user_id, role_id, granted_by)
+        `INSERT INTO user_service.funcionario_roles(funcionario_id, role_id, granted_by)
          VALUES ($1,$2,$3)`,
         [funcionario.id, roleRes.rows[0].id, null]
       );
@@ -91,11 +91,11 @@ export const updateFuncionarioRole = async (req: Request, res: Response) => {
     if (!role) return res.status(404).json({ error: 'Role não encontrada' });
 
     const { rows } = await c.query(`
-      INSERT INTO user_service.user_roles(user_id, role_id, granted_by)
-      VALUES ($1,$2,$3) ON CONFLICT (user_id, role_id) DO UPDATE SET active=true, granted_by=$3 RETURNING *
+      INSERT INTO user_service.funcionario_roles(funcionario_id, role_id, granted_by)
+      VALUES ($1,$2,$3) ON CONFLICT (funcionario_id, role_id) DO UPDATE SET active=true, granted_by=$3 RETURNING *
     `, [id, role.id, actor_id]);
 
-        await c.query(
+    await c.query(
       `INSERT INTO user_service.user_role_history(user_role_id, user_id, role_id, action, actor_id)
        VALUES ($1,$2,$3,'GRANTED',$4)`,
       [rows[0].id, id, role.id, actor_id]

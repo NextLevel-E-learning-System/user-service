@@ -31,7 +31,7 @@ async function fetchFromService(url: string, headers: Record<string, string> = {
 }
 
 // Buscar dados do usuário logado
-async function getUserData(authUserId: string) {
+async function getUserData(funcionarioId: string) {
   return await withClient(async (c) => {
     const { rows } = await c.query(`
       SELECT f.*, d.nome as departamento_nome, c.nome as cargo_nome,
@@ -39,11 +39,11 @@ async function getUserData(authUserId: string) {
       FROM user_service.funcionarios f
       LEFT JOIN user_service.departamentos d ON f.departamento_id = d.codigo
       LEFT JOIN user_service.cargos c ON f.cargo_nome = c.nome
-      LEFT JOIN user_service.user_roles ur ON f.id = ur.user_id AND ur.active = true
+      LEFT JOIN user_service.funcionario_roles ur ON f.id = ur.funcionario_id AND ur.active = true
       LEFT JOIN user_service.roles r ON ur.role_id = r.id
-      WHERE f.auth_user_id = $1 AND f.ativo = true
+      WHERE f.id = $1 AND f.ativo = true
       GROUP BY f.id, d.nome, c.nome
-    `, [authUserId]);
+    `, [funcionarioId]);
     
     return rows[0] || null;
   });
@@ -54,32 +54,32 @@ export const getDashboard = async (req: Request, res: Response) => {
     console.log('[dashboard] Request headers:', JSON.stringify(req.headers, null, 2));
     
     // Ler dados do usuário do header x-user-data (base64 encoded JSON)
-    let authUserId: string | undefined;
+    let funcionarioId: string | undefined;
     
     try {
       const userDataHeader = req.headers['x-user-data'] as string;
       if (userDataHeader) {
         const userData = JSON.parse(Buffer.from(userDataHeader, 'base64').toString('utf8'));
-        authUserId = userData.sub;
+        funcionarioId = userData.sub;
         console.log('[dashboard] User extracted from x-user-data:', userData);
       } else {
         // Fallback: tentar ler do header x-user-id
-        authUserId = req.headers['x-user-id'] as string;
-        console.log('[dashboard] Fallback: using x-user-id header:', authUserId);
+        funcionarioId = req.headers['x-user-id'] as string;
+        console.log('[dashboard] Fallback: using x-user-id header:', funcionarioId);
       }
     } catch (error) {
       console.error('[dashboard] Error parsing user data from headers:', error);
     }
     
-    console.log('[dashboard] Auth user ID extracted:', authUserId);
+    console.log('[dashboard] Funcionario ID extracted:', funcionarioId);
     
-    if (!authUserId) {
-      console.log('[dashboard] No auth user ID found, returning 401');
+    if (!funcionarioId) {
+      console.log('[dashboard] No funcionario ID found, returning 401');
       throw new HttpError(401, 'user_not_authenticated');
     }
 
     // Buscar dados do usuário
-    const userData = await getUserData(authUserId);
+    const userData = await getUserData(funcionarioId);
     if (!userData) {
       throw new HttpError(404, 'user_not_found');
     }
@@ -286,8 +286,8 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
           COUNT(CASE WHEN u.ultimo_acesso > now() - interval '30 days' THEN 1 END) as usuarios_ativos_30d,
           COUNT(CASE WHEN ur.role_id = (SELECT id FROM user_service.roles WHERE nome = 'INSTRUTOR') THEN 1 END) as total_instrutores
         FROM user_service.funcionarios f
-        JOIN auth_service.usuarios u ON f.auth_user_id = u.id
-        LEFT JOIN user_service.user_roles ur ON f.id = ur.user_id AND ur.active = true
+        JOIN auth_service.usuarios u ON f.id = u.funcionario_id
+        LEFT JOIN user_service.funcionario_roles ur ON f.id = ur.funcionario_id AND ur.active = true
         WHERE f.ativo = true AND f.departamento_id = $1
       `, [userData.departamento_id]);
       return rows[0];
@@ -308,7 +308,7 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
           COUNT(CASE WHEN u.ultimo_acesso > now() - interval '7 days' THEN 1 END) as ativos_semana
         FROM user_service.departamentos d
         LEFT JOIN user_service.funcionarios f ON d.codigo = f.departamento_id AND f.ativo = true
-        LEFT JOIN auth_service.usuarios u ON f.auth_user_id = u.id
+        LEFT JOIN auth_service.usuarios u ON f.id = u.funcionario_id
         WHERE d.codigo = $1 AND d.ativo = true
         GROUP BY d.codigo, d.nome
       `, [userData.departamento_id]);
@@ -384,8 +384,8 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
             COUNT(CASE WHEN u.ultimo_acesso > now() - interval '30 days' THEN 1 END) as usuarios_ativos_30d,
             COUNT(CASE WHEN ur.role_id = (SELECT id FROM user_service.roles WHERE nome = 'INSTRUTOR') THEN 1 END) as total_instrutores
           FROM user_service.funcionarios f
-          JOIN auth_service.usuarios u ON f.auth_user_id = u.id
-          LEFT JOIN user_service.user_roles ur ON f.id = ur.user_id AND ur.active = true
+          JOIN auth_service.usuarios u ON f.id = u.funcionario_id
+          LEFT JOIN user_service.funcionario_roles ur ON f.id = ur.funcionario_id AND ur.active = true
           WHERE f.ativo = true
         `);
         return rows[0];
@@ -405,7 +405,7 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
           COUNT(CASE WHEN u.ultimo_acesso > now() - interval '7 days' THEN 1 END) as ativos_semana
         FROM user_service.departamentos d
         LEFT JOIN user_service.funcionarios f ON d.codigo = f.departamento_id AND f.ativo = true
-        LEFT JOIN auth_service.usuarios u ON f.auth_user_id = u.id
+        LEFT JOIN auth_service.usuarios u ON f.id = u.funcionario_id
         WHERE d.ativo = true
         GROUP BY d.codigo, d.nome
         ORDER BY xp_medio DESC NULLS LAST
