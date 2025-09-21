@@ -110,7 +110,8 @@ export const getDashboard = async (req: Request, res: Response) => {
         dashboardData = await getInstructorDashboard(userData);
         break;
       case 'GERENTE':
-        dashboardData = await getManagerDashboard(userData);
+        // GERENTE usa o mesmo dashboard que ADMIN, mas filtrado por departamento
+        dashboardData = await getGerenteDashboard(userData);
         break;
       default: // ALUNO ou qualquer outra role
         dashboardData = await getEmployeeDashboard(userData);
@@ -284,10 +285,10 @@ async function getInstructorDashboard(userData: { id: string }) {
   }
 }
 
-// Dashboard do Gerente
-async function getManagerDashboard(userData: { departamento_id?: string; departamento_nome?: string }) {
+// Dashboard do Gerente (mesmo formato que ADMIN, mas filtrado por departamento)
+async function getGerenteDashboard(userData: { departamento_id?: string; departamento_nome?: string }) {
   try {
-    // Buscar dados do departamento
+    // Buscar estatísticas do departamento específico
     const departmentStats = await fetchFromService(
       `${PROGRESS_SERVICE_URL}/progress/v1/department/${userData.departamento_id}/stats`
     );
@@ -295,33 +296,92 @@ async function getManagerDashboard(userData: { departamento_id?: string; departa
     // Buscar funcionários do departamento
     const departmentUsers = await withClient(async (c) => {
       const { rows } = await c.query(`
-        SELECT COUNT(*) as total_funcionarios,
-               COUNT(CASE WHEN u.ultimo_acesso > now() - interval '30 days' THEN 1 END) as funcionarios_ativos
+        SELECT 
+          COUNT(*) as total_usuarios,
+          COUNT(CASE WHEN u.ultimo_acesso > now() - interval '30 days' THEN 1 END) as usuarios_ativos_30d,
+          COUNT(CASE WHEN ur.role_id = (SELECT id FROM user_service.roles WHERE nome = 'INSTRUTOR') THEN 1 END) as total_instrutores
         FROM user_service.funcionarios f
         JOIN auth_service.usuarios u ON f.auth_user_id = u.id
-        WHERE f.departamento_id = $1 AND f.ativo = true
+        LEFT JOIN user_service.user_roles ur ON f.id = ur.user_id AND ur.active = true
+        WHERE f.ativo = true AND f.departamento_id = $1
       `, [userData.departamento_id]);
       return rows[0];
     });
 
+    // Buscar cursos do departamento
+    const departmentCourses = await fetchFromService(
+      `${COURSE_SERVICE_URL}/courses/v1/department/${userData.departamento_id}/stats`
+    );
+
+    // Buscar engajamento detalhado do departamento
+    const departmentEngagement = await withClient(async (c) => {
+      const { rows } = await c.query(`
+        SELECT 
+          d.nome as departamento,
+          COUNT(f.id) as total_funcionarios,
+          AVG(f.xp_total) as xp_medio,
+          COUNT(CASE WHEN u.ultimo_acesso > now() - interval '7 days' THEN 1 END) as ativos_semana
+        FROM user_service.departamentos d
+        LEFT JOIN user_service.funcionarios f ON d.codigo = f.departamento_id AND f.ativo = true
+        LEFT JOIN auth_service.usuarios u ON f.auth_user_id = u.id
+        WHERE d.codigo = $1 AND d.ativo = true
+        GROUP BY d.codigo, d.nome
+      `, [userData.departamento_id]);
+      return rows;
+    });
+
+    // Gerar alertas do departamento
+    const alertas = [];
+    const taxaConclusao = departmentStats?.taxa_conclusao || 0;
+    if (taxaConclusao < 70) {
+      alertas.push({
+        tipo: 'Taxa de conclusão baixa',
+        descricao: `Taxa do departamento ${userData.departamento_nome}: ${taxaConclusao}% está abaixo do ideal`,
+        prioridade: 'alta'
+      });
+    }
+
     return {
-      tipo_dashboard: 'gerente',
-      departamento: {
-        nome: userData.departamento_nome,
-        total_funcionarios: departmentUsers?.total_funcionarios || 0,
-        funcionarios_ativos: departmentUsers?.funcionarios_ativos || 0,
-        taxa_conclusao_cursos: departmentStats?.taxa_conclusao || 0,
-        xp_medio_funcionarios: departmentStats?.xp_medio || 0
+      tipo_dashboard: 'administrador', // Mesmo tipo que ADMIN para compatibilidade
+      metricas_gerais: {
+        total_usuarios: departmentUsers?.total_usuarios || 0,
+        usuarios_ativos_30d: departmentUsers?.usuarios_ativos_30d || 0,
+        total_instrutores: departmentUsers?.total_instrutores || 0,
+        total_cursos: departmentCourses?.total_cursos || 0,
+        taxa_conclusao_geral: taxaConclusao,
+        inscricoes_30d: departmentStats?.inscricoes_30d || 0,
+        avaliacao_media_plataforma: departmentStats?.avaliacao_media || 0
       },
-      top_performers: departmentStats?.top_performers || [],
-      cursos_departamento: departmentStats?.cursos_populares || [],
-      alertas: departmentStats?.alertas || []
+      engajamento_departamentos: departmentEngagement.map((dept: { 
+        departamento: string; 
+        total_funcionarios: string; 
+        xp_medio: number; 
+        ativos_semana: string 
+      }) => ({
+        departamento: dept.departamento,
+        total_funcionarios: parseInt(dept.total_funcionarios),
+        xp_medio: Math.round(dept.xp_medio || 0),
+        funcionarios_ativos: parseInt(dept.ativos_semana)
+      })),
+      cursos_populares: departmentCourses?.cursos_populares || [],
+      alertas,
+      // Adicionar flag para indicar que é um gerente
+      _departamento_restrito: {
+        departamento_id: userData.departamento_id,
+        departamento_nome: userData.departamento_nome
+      }
     };
   } catch (error) {
-    console.error('[dashboard] Error getting manager dashboard:', error);
+    console.error('[dashboard] Error getting gerente dashboard:', error);
     return {
-      tipo_dashboard: 'gerente',
-      departamento: { nome: userData.departamento_nome },
+      tipo_dashboard: 'administrador',
+      metricas_gerais: {
+        total_usuarios: 0,
+        usuarios_ativos_30d: 0,
+        total_cursos: 0,
+        taxa_conclusao_geral: 0
+      },
+      engajamento_departamentos: [],
       alertas: []
     };
   }
