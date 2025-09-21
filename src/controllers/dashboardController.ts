@@ -7,7 +7,6 @@ const COURSE_SERVICE_URL = process.env.COURSE_SERVICE_URL || 'http://course-serv
 const PROGRESS_SERVICE_URL = process.env.PROGRESS_SERVICE_URL || 'http://progress-service:3333';
 const GAMIFICATION_SERVICE_URL = process.env.GAMIFICATION_SERVICE_URL || 'http://gamification-service:3333';
 const ASSESSMENT_SERVICE_URL = process.env.ASSESSMENT_SERVICE_URL || 'http://assessment-service:3333';
-const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL || 'http://notification-service:3333';
 
 // Helper para fazer chamadas HTTP entre microserviços
 async function fetchFromService(url: string, headers: Record<string, string> = {}) {
@@ -50,14 +49,6 @@ async function getUserData(authUserId: string) {
   });
 }
 
-// Buscar notificações não lidas
-async function getNotifications(authUserId: string) {
-  const notifications = await fetchFromService(
-    `${NOTIFICATION_SERVICE_URL}/notifications/v1/notificacoes?usuario_id=${authUserId}&lida=false&limit=10`
-  );
-  return notifications?.notificacoes || [];
-}
-
 export const getDashboard = async (req: Request, res: Response) => {
   try {
     console.log('[dashboard] Request headers:', JSON.stringify(req.headers, null, 2));
@@ -96,10 +87,6 @@ export const getDashboard = async (req: Request, res: Response) => {
     // Determinar role principal (primeira role ou ALUNO como padrão)
     const mainRole = (userData.roles && userData.roles.length > 0) ? userData.roles[0] : 'ALUNO';
 
-    // Buscar notificações
-    const notifications = await getNotifications(authUserId);
-    const notificationsList = Array.isArray(notifications) ? notifications : [];
-
     // Gerar dashboard baseado na role
     let dashboardData;
     switch (mainRole) {
@@ -129,8 +116,6 @@ export const getDashboard = async (req: Request, res: Response) => {
         xp_total: userData.xp_total,
         roles: userData.roles || ['ALUNO']
       },
-      notificacoes_nao_lidas: notificationsList.length,
-      notificacoes: notificationsList.slice(0, 5), // Apenas as 5 mais recentes
       dashboard: dashboardData
     });
 

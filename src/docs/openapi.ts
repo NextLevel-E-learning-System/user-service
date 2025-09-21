@@ -251,7 +251,7 @@ export const openapiSpec = {
         "summary": "Obter dashboard completo do usuário",
         "tags": ["funcionarios"],
         "security": [{"bearerAuth": []}],
-        "description": "Retorna dados completos do usuário, notificações e dashboard personalizado conforme a role: ALUNO, INSTRUTOR, GERENTE ou ADMIN",
+        "description": "Retorna dados completos do usuário e dashboard personalizado conforme a role: ALUNO, INSTRUTOR, GERENTE ou ADMIN",
         "responses": {
           "200": {
             "description": "Dados completos do dashboard e usuário",
@@ -269,15 +269,6 @@ export const openapiSpec = {
                     "xp_total": 1250,
                     "roles": ["ALUNO"]
                   },
-                  "notificacoes_nao_lidas": 3,
-                  "notificacoes": [
-                    {
-                      "id": "notif-1",
-                      "titulo": "Novo curso disponível",
-                      "descricao": "Angular Avançado está disponível para inscrição",
-                      "data_criacao": "2025-09-19T10:30:00Z"
-                    }
-                  ],
                   "dashboard": {
                     "tipo_dashboard": "aluno",
                     "progressao": {
@@ -473,7 +464,7 @@ export const openapiSpec = {
       },
       "DashboardResponse": {
         "type": "object",
-        "description": "Resposta completa do endpoint dashboard incluindo dados do usuário, notificações e dashboard específico da role",
+        "description": "Resposta completa do endpoint dashboard incluindo dados do usuário e dashboard específico da role",
         "properties": {
           "usuario": {
             "type": "object",
@@ -494,15 +485,6 @@ export const openapiSpec = {
             },
             "required": ["id", "nome", "email", "nivel", "xp_total", "roles"]
           },
-          "notificacoes_nao_lidas": {
-            "type": "integer",
-            "description": "Número de notificações não lidas"
-          },
-          "notificacoes": {
-            "type": "array",
-            "items": {"type": "object"},
-            "description": "Lista das 5 notificações mais recentes"
-          },
           "dashboard": {
             "oneOf": [
               {"$ref": "#/components/schemas/DashboardAluno"},
@@ -513,7 +495,7 @@ export const openapiSpec = {
             "description": "Dados específicos do dashboard baseado na role do usuário"
           }
         },
-        "required": ["usuario", "notificacoes_nao_lidas", "notificacoes", "dashboard"]
+        "required": ["usuario", "dashboard"]
       },
       "DashboardAluno": {
         "type": "object",
