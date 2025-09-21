@@ -605,8 +605,9 @@ export const openapiSpec = {
           "metricas_gerais": {
             "type": "object",
             "properties": {
-              "total_usuarios": {"type": "integer"},
-              "usuarios_ativos_30d": {"type": "integer"},
+              "total_funcionarios": {"type": "integer"},
+              "funcionarios_ativos": {"type": "integer"},
+              "alunos_ativos": {"type": "integer"},
               "total_instrutores": {"type": "integer"},
               "total_cursos": {"type": "integer"},
               "taxa_conclusao_geral": {"type": "number"},
@@ -619,7 +620,8 @@ export const openapiSpec = {
             "items": {
               "type": "object",
               "properties": {
-                "departamento": {"type": "string"},
+                "codigo": {"type": "string"},
+                "nome": {"type": "string"},
                 "total_funcionarios": {"type": "integer"},
                 "xp_medio": {"type": "integer"},
                 "funcionarios_ativos": {"type": "integer"}

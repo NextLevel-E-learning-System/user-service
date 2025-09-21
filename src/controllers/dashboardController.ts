@@ -360,8 +360,9 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
     return {
       tipo_dashboard: 'administrador',
       metricas_gerais: {
-        total_usuarios: 0,
-        usuarios_ativos_30d: 0,
+        total_funcionarios: 0,
+        funcionarios_ativos: 0,
+        alunos_ativos: 0,
         total_cursos: 0,
         taxa_conclusao_geral: 0
       },
@@ -455,8 +456,9 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
     return {
       tipo_dashboard: 'administrador',
       metricas_gerais: {
-        total_usuarios: 0,
-        usuarios_ativos_30d: 0,
+        total_funcionarios: 0,
+        funcionarios_ativos: 0,
+        alunos_ativos: 0,
         total_cursos: 0,
         taxa_conclusao_geral: 0
       },
