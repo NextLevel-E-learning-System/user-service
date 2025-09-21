@@ -10,6 +10,7 @@ export const openapiSpec = {
       "get": {
         "summary": "Listar departamentos (público)",
         "tags": ["departamentos"],
+        "description": "Lista apenas departamentos ativos para uso público",
         "responses": {
           "200": {
             "description": "Lista de departamentos ativos",
@@ -17,7 +18,7 @@ export const openapiSpec = {
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": {"$ref": "#/components/schemas/Departamento"}
+                  "items": {"$ref": "#/components/schemas/DepartamentoPublico"}
                 }
               }
             }
@@ -41,7 +42,28 @@ export const openapiSpec = {
             "description": "Departamento criado",
             "content": {
               "application/json": {
-                "schema": {"$ref": "#/components/schemas/Departamento"}
+                "schema": {"$ref": "#/components/schemas/DepartamentoCompleto"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/v1/departamentos/admin": {
+      "get": {
+        "summary": "Listar todos os departamentos (ADMIN)",
+        "tags": ["departamentos"],
+        "security": [{"bearerAuth": []}],
+        "description": "Lista todos os departamentos (ativos e inativos) com informações completas para administração",
+        "responses": {
+          "200": {
+            "description": "Lista completa de departamentos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {"$ref": "#/components/schemas/DepartamentoCompleto"}
+                }
               }
             }
           }
@@ -49,6 +71,27 @@ export const openapiSpec = {
       }
     },
     "/users/v1/departamentos/{codigo}": {
+      "get": {
+        "summary": "Obter departamento específico (ADMIN)",
+        "tags": ["departamentos"],
+        "security": [{"bearerAuth": []}],
+        "parameters": [
+          {"name": "codigo", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Dados completos do departamento",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/DepartamentoCompleto"}
+              }
+            }
+          },
+          "404": {
+            "description": "Departamento não encontrado"
+          }
+        }
+      },
       "put": {
         "summary": "Atualizar departamento (ADMIN)",
         "tags": ["departamentos"],
@@ -69,7 +112,7 @@ export const openapiSpec = {
             "description": "Departamento atualizado",
             "content": {
               "application/json": {
-                "schema": {"$ref": "#/components/schemas/Departamento"}
+                "schema": {"$ref": "#/components/schemas/DepartamentoCompleto"}
               }
             }
           }
@@ -386,6 +429,29 @@ export const openapiSpec = {
       }
     },
     "schemas": {
+      "DepartamentoPublico": {
+        "type": "object",
+        "description": "Versão pública simplificada do departamento",
+        "properties": {
+          "codigo": {"type": "string"},
+          "nome": {"type": "string"}
+        }
+      },
+      "DepartamentoCompleto": {
+        "type": "object",
+        "description": "Versão completa do departamento com todas as informações",
+        "properties": {
+          "codigo": {"type": "string"},
+          "nome": {"type": "string"},
+          "descricao": {"type": "string", "nullable": true},
+          "gestor_funcionario_id": {"type": "string", "format": "uuid", "nullable": true},
+          "gestor_nome": {"type": "string", "nullable": true, "description": "Nome do funcionário gestor"},
+          "ativo": {"type": "boolean"},
+          "inactivated_at": {"type": "string", "format": "date-time", "nullable": true},
+          "criado_em": {"type": "string", "format": "date-time"},
+          "atualizado_em": {"type": "string", "format": "date-time"}
+        }
+      },
       "Departamento": {
         "type": "object",
         "properties": {
