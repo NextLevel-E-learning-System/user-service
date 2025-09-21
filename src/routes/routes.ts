@@ -15,7 +15,7 @@ departamentoRouter.get("/admin", deptCtrl.listAllDepartamentos); // Rota adminis
 departamentoRouter.get("/:codigo", deptCtrl.getDepartamento);
 departamentoRouter.post("/", deptCtrl.createDepartamento);
 departamentoRouter.put("/:codigo", deptCtrl.updateDepartamento);
-departamentoRouter.delete("/:codigo", deptCtrl.deactivateDepartamento);
+departamentoRouter.delete("/:codigo", deptCtrl.deleteDepartamento);
 
 export const cargoRouter = Router();
 cargoRouter.post("/", cargoCtrl.createCargo);
