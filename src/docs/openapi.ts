@@ -10,16 +10,26 @@ export const openapiSpec = {
       "get": {
         "summary": "Listar departamentos (público)",
         "tags": ["departamentos"],
-        "description": "Lista apenas departamentos ativos para uso público",
+        "description": "Lista apenas departamentos ativos com informações básicas (código e nome) para uso público em formulários de cadastro",
         "responses": {
           "200": {
-            "description": "Lista de departamentos ativos",
+            "description": "Lista de departamentos ativos (apenas código e nome)",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
                   "items": {"$ref": "#/components/schemas/DepartamentoPublico"}
-                }
+                },
+                "example": [
+                  {
+                    "codigo": "TI",
+                    "nome": "Tecnologia da Informação"
+                  },
+                  {
+                    "codigo": "RH", 
+                    "nome": "Recursos Humanos"
+                  }
+                ]
               }
             }
           }
@@ -54,16 +64,30 @@ export const openapiSpec = {
         "summary": "Listar todos os departamentos (ADMIN)",
         "tags": ["departamentos"],
         "security": [{"bearerAuth": []}],
-        "description": "Lista todos os departamentos (ativos e inativos) com informações completas para administração",
+        "description": "Lista todos os departamentos (ativos e inativos) com informações completas para administração. Inclui descrição, gestor, status, datas e contadores.",
         "responses": {
           "200": {
-            "description": "Lista completa de departamentos",
+            "description": "Lista completa de departamentos com todas as informações",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
                   "items": {"$ref": "#/components/schemas/DepartamentoCompleto"}
-                }
+                },
+                "example": [
+                  {
+                    "codigo": "TI",
+                    "nome": "Tecnologia da Informação", 
+                    "descricao": "Responsável por sistemas e infraestrutura",
+                    "gestor_funcionario_id": "123e4567-e89b-12d3-a456-426614174000",
+                    "gestor_nome": "João Silva",
+                    "ativo": true,
+                    "total_funcionarios": 15,
+                    "criado_em": "2024-01-15T10:00:00Z",
+                    "atualizado_em": "2024-03-20T14:30:00Z",
+                    "inactivated_at": null
+                  }
+                ]
               }
             }
           }
@@ -431,25 +455,81 @@ export const openapiSpec = {
     "schemas": {
       "DepartamentoPublico": {
         "type": "object",
-        "description": "Versão pública simplificada do departamento",
+        "description": "Versão pública simplificada do departamento - apenas informações básicas para uso em formulários de cadastro",
+        "required": ["codigo", "nome"],
         "properties": {
-          "codigo": {"type": "string"},
-          "nome": {"type": "string"}
+          "codigo": {
+            "type": "string",
+            "description": "Código único do departamento",
+            "example": "TI"
+          },
+          "nome": {
+            "type": "string", 
+            "description": "Nome completo do departamento",
+            "example": "Tecnologia da Informação"
+          }
         }
       },
       "DepartamentoCompleto": {
         "type": "object",
-        "description": "Versão completa do departamento com todas as informações",
+        "description": "Versão completa do departamento com todas as informações para administração",
+        "required": ["codigo", "nome", "ativo", "criado_em", "atualizado_em"],
         "properties": {
-          "codigo": {"type": "string"},
-          "nome": {"type": "string"},
-          "descricao": {"type": "string", "nullable": true},
-          "gestor_funcionario_id": {"type": "string", "format": "uuid", "nullable": true},
-          "gestor_nome": {"type": "string", "nullable": true, "description": "Nome do funcionário gestor"},
-          "ativo": {"type": "boolean"},
-          "inactivated_at": {"type": "string", "format": "date-time", "nullable": true},
-          "criado_em": {"type": "string", "format": "date-time"},
-          "atualizado_em": {"type": "string", "format": "date-time"}
+          "codigo": {
+            "type": "string",
+            "description": "Código único do departamento"
+          },
+          "nome": {
+            "type": "string",
+            "description": "Nome completo do departamento"
+          },
+          "descricao": {
+            "type": "string", 
+            "nullable": true,
+            "description": "Descrição detalhada do departamento"
+          },
+          "gestor_funcionario_id": {
+            "type": "string", 
+            "format": "uuid", 
+            "nullable": true,
+            "description": "ID do funcionário que gerencia este departamento"
+          },
+          "gestor_nome": {
+            "type": "string", 
+            "nullable": true, 
+            "description": "Nome do funcionário gestor"
+          },
+          "gestor_email": {
+            "type": "string",
+            "format": "email",
+            "nullable": true,
+            "description": "Email do funcionário gestor"
+          },
+          "ativo": {
+            "type": "boolean",
+            "description": "Indica se o departamento está ativo"
+          },
+          "total_funcionarios": {
+            "type": "integer",
+            "description": "Número total de funcionários ativos neste departamento",
+            "minimum": 0
+          },
+          "inactivated_at": {
+            "type": "string", 
+            "format": "date-time", 
+            "nullable": true,
+            "description": "Data e hora da inativação (se aplicável)"
+          },
+          "criado_em": {
+            "type": "string", 
+            "format": "date-time",
+            "description": "Data e hora da criação"
+          },
+          "atualizado_em": {
+            "type": "string", 
+            "format": "date-time",
+            "description": "Data e hora da última atualização"
+          }
         }
       },
       "Departamento": {

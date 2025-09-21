@@ -6,16 +6,8 @@ export const listDepartamentos = async (_req: Request, res: Response) => {
     const { rows } = await c.query(`
       SELECT 
         d.codigo,
-        d.nome,
-        d.descricao,
-        d.gestor_funcionario_id,
-        f.nome as gestor_nome,
-        d.ativo,
-        d.criado_em,
-        d.atualizado_em,
-        d.inactivated_at
+        d.nome
       FROM user_service.departamentos d
-      LEFT JOIN user_service.funcionarios f ON d.gestor_funcionario_id = f.id
       WHERE d.ativo = true
       ORDER BY d.nome
     `);
