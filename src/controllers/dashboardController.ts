@@ -137,11 +137,6 @@ async function getEmployeeDashboard(userData: { id: string; xp_total?: number; d
       `${GAMIFICATION_SERVICE_URL}/gamification/v1/user/${userData.id}/stats`
     );
 
-    // Buscar catálogo de cursos
-    const catalogData = await fetchFromService(
-      `${COURSE_SERVICE_URL}/courses/v1/catalogo?departamento=${userData.departamento_id}`
-    );
-
     // Calcular progressão de nível
     const xpAtual = userData.xp_total || 0;
     const nivel = Math.floor(xpAtual / 1000) + 1;
@@ -159,26 +154,17 @@ async function getEmployeeDashboard(userData: { id: string; xp_total?: number; d
       },
       cursos: {
         em_andamento: progressData?.cursos_em_andamento || [],
-        concluidos: progressData?.cursos_concluidos || [],
-        recomendados: catalogData?.cursos_recomendados || [],
-        populares: catalogData?.cursos_populares || []
+        concluidos: progressData?.cursos_concluidos || []
       },
       ranking: {
         posicao_departamento: gamificationData?.ranking_departamento?.posicao || null,
         total_departamento: gamificationData?.ranking_departamento?.total || null,
         posicao_geral: gamificationData?.ranking_geral?.posicao || null
-      },
-      atividades_recentes: progressData?.atividades_recentes || []
+      }
     };
   } catch (error) {
     console.error('[dashboard] Error getting employee dashboard:', error);
-    return {
-      tipo_dashboard: 'aluno',
-      progressao: { xp_atual: 0, nivel_atual: 1, progresso_nivel: 0 },
-      cursos: { em_andamento: [], concluidos: [], recomendados: [] },
-      ranking: {},
-      atividades_recentes: []
-    };
+    return 
   }
 }
 
@@ -251,8 +237,7 @@ async function getInstructorDashboard(userData: { id: string }) {
         avaliacao_media: curso.avaliacao_media || null,
         status: curso.ativo ? 'Ativo' : 'Inativo'
       })),
-      alertas,
-      atividades_recentes: progressStats?.atividades_recentes || []
+      alertas
     };
   } catch (error) {
     console.error('[dashboard] Error getting instructor dashboard:', error);
@@ -261,7 +246,6 @@ async function getInstructorDashboard(userData: { id: string }) {
       metricas: { total_cursos: 0, total_alunos: 0 },
       cursos: [],
       alertas: [],
-      atividades_recentes: []
     };
   }
 }
@@ -347,7 +331,7 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
         xp_medio: Math.round(dept.xp_medio || 0),
         funcionarios_ativos: parseInt(dept.funcionarios_ativos)
       })),
-      cursos_populares: departmentCourses?.cursos_populares || [],
+      cursos_populares: [],
       alertas,
       // Adicionar flag para indicar que é um gerente
       _departamento_restrito: {
@@ -367,6 +351,7 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
         taxa_conclusao_geral: 0
       },
       engajamento_departamentos: [],
+      cursos_populares: [],
       alertas: []
     };
   }
@@ -376,7 +361,7 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
 async function getAdminDashboard(_userData: Record<string, unknown>) {
   try {
     // Buscar estatísticas gerais de todos os serviços
-    const [usersStats, coursesStats, progressStats, assessmentsStats] = await Promise.all([
+    const [usersStats, coursesStats, progressStats] = await Promise.all([
       withClient(async (c) => {
         const { rows } = await c.query(`
           SELECT 
@@ -412,6 +397,9 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
       return rows;
     });
 
+    // Buscar cursos populares
+    const cursosPopulares = await fetchFromService(`${COURSE_SERVICE_URL}/courses/v1?limit=5&orderBy=total_inscricoes&order=desc`);
+
     // Gerar alertas do sistema
     const alertas = [];
     const taxaConclusaoGeral = progressStats?.taxa_conclusao_geral || 0;
@@ -433,7 +421,6 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
         total_cursos: coursesStats?.total_cursos || 0,
         taxa_conclusao_geral: taxaConclusaoGeral,
         inscricoes_30d: progressStats?.inscricoes_30d || 0,
-        avaliacao_media_plataforma: assessmentsStats?.avaliacao_media || 0
       },
       engajamento_departamentos: departmentEngagement.map((dept: { 
         codigo: string;
@@ -448,7 +435,7 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
         xp_medio: Math.round(dept.xp_medio || 0),
         funcionarios_ativos: parseInt(dept.funcionarios_ativos)
       })),
-      cursos_populares: coursesStats?.cursos_populares || [],
+      cursos_populares: cursosPopulares?.items || [],
       alertas
     };
   } catch (error) {
@@ -463,6 +450,7 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
         taxa_conclusao_geral: 0
       },
       engajamento_departamentos: [],
+      cursos_populares: [],
       alertas: []
     };
   }

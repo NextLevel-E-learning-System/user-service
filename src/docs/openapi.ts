@@ -322,7 +322,7 @@ export const openapiSpec = {
         "summary": "Obter dashboard completo do usuário",
         "tags": ["funcionarios"],
         "security": [{"bearerAuth": []}],
-        "description": "Retorna dados completos do usuário e dashboard personalizado conforme a role: ALUNO, INSTRUTOR, GERENTE ou ADMIN",
+        "description": "Retorna dados completos do usuário e dashboard personalizado conforme a role:\n\n• **ALUNO**: Progressão XP/nível, cursos em andamento/concluídos, ranking departamental e geral\n• **INSTRUTOR**: Métricas dos cursos, alunos inscritos/concluídos, avaliações pendentes, alertas\n• **GERENTE**: Dados do departamento específico (mesmo formato ADMIN mas filtrado), métricas departamentais\n• **ADMIN**: Visão completa da plataforma, métricas gerais, engajamento por departamento, cursos populares\n\n**Integração com Microserviços:**\nO dashboard integra dados de múltiplos serviços:\n- `course-service`: Informações de cursos e categorias\n- `progress-service`: Progresso de aprendizagem e conclusões  \n- `gamification-service`: XP, badges e rankings\n- `assessment-service`: Avaliações e notas\n\n**Autenticação:**\nRequer header `x-user-data` (base64 JSON) ou fallback `x-user-id` fornecido pelo API Gateway.",
         "responses": {
           "200": {
             "description": "Dados completos do dashboard e usuário",
@@ -334,7 +334,7 @@ export const openapiSpec = {
                     "id": "123e4567-e89b-12d3-a456-426614174000",
                     "nome": "João Silva",
                     "email": "joao.silva@empresa.com",
-                    "departamento": "Tecnologia",
+                    "departamento": "Tecnologia da Informação",
                     "cargo": "Desenvolvedor",
                     "nivel": "Intermediário",
                     "xp_total": 1250,
@@ -344,23 +344,26 @@ export const openapiSpec = {
                     "tipo_dashboard": "aluno",
                     "progressao": {
                       "xp_atual": 1250,
-                      "nivel_atual": 3,
+                      "nivel_atual": 2,
                       "xp_proximo_nivel": 2000,
-                      "progresso_nivel": 62.5,
-                      "badges_conquistados": []
+                      "progresso_nivel": 63,
+                      "badges_conquistados": [
+                        {"tipo": "primeiro_curso", "nome": "Primeiro Passo", "conquistado_em": "2024-01-15"}
+                      ]
                     },
                     "cursos": {
-                      "em_andamento": [],
-                      "concluidos": [],
-                      "recomendados": [],
-                      "populares": []
+                      "em_andamento": [
+                        {"codigo": "JS101", "titulo": "JavaScript Básico", "progresso": 45}
+                      ],
+                      "concluidos": [
+                        {"codigo": "HTML101", "titulo": "HTML Fundamentals", "concluido_em": "2024-01-10"}
+                      ]
                     },
                     "ranking": {
                       "posicao_departamento": 5,
                       "total_departamento": 20,
                       "posicao_geral": 45
-                    },
-                    "atividades_recentes": []
+                    }
                   }
                 }
               }
@@ -660,123 +663,243 @@ export const openapiSpec = {
       },
       "DashboardAluno": {
         "type": "object",
+        "description": "Dashboard específico para usuários com role ALUNO",
         "properties": {
           "tipo_dashboard": {"type": "string", "enum": ["aluno"]},
           "progressao": {
             "type": "object",
+            "description": "Informações sobre progressão de XP e nível",
             "properties": {
-              "xp_atual": {"type": "integer"},
-              "nivel_atual": {"type": "integer"},
-              "xp_proximo_nivel": {"type": "integer"},
-              "progresso_nivel": {"type": "integer"},
-              "badges_conquistados": {"type": "array", "items": {"type": "object"}}
-            }
+              "xp_atual": {"type": "integer", "description": "XP atual do aluno"},
+              "nivel_atual": {"type": "integer", "description": "Nível atual baseado no XP"},
+              "xp_proximo_nivel": {"type": "integer", "description": "XP necessário para o próximo nível"},
+              "progresso_nivel": {"type": "integer", "description": "Percentual de progresso para o próximo nível"},
+              "badges_conquistados": {
+                "type": "array", 
+                "items": {"type": "object"},
+                "description": "Lista de badges/conquistas do aluno"
+              }
+            },
+            "required": ["xp_atual", "nivel_atual", "xp_proximo_nivel", "progresso_nivel", "badges_conquistados"]
           },
           "cursos": {
             "type": "object",
+            "description": "Informações sobre cursos do aluno",
             "properties": {
-              "em_andamento": {"type": "array", "items": {"type": "object"}},
-              "concluidos": {"type": "array", "items": {"type": "object"}},
-              "recomendados": {"type": "array", "items": {"type": "object"}},
-              "populares": {"type": "array", "items": {"type": "object"}}
-            }
+              "em_andamento": {
+                "type": "array", 
+                "items": {"type": "object"},
+                "description": "Cursos atualmente em progresso"
+              },
+              "concluidos": {
+                "type": "array", 
+                "items": {"type": "object"},
+                "description": "Cursos já concluídos"
+              }
+            },
+            "required": ["em_andamento", "concluidos"]
           },
           "ranking": {
             "type": "object",
+            "description": "Posição do aluno nos rankings",
             "properties": {
-              "posicao_departamento": {"type": "integer", "nullable": true},
-              "total_departamento": {"type": "integer", "nullable": true},
-              "posicao_geral": {"type": "integer", "nullable": true}
+              "posicao_departamento": {
+                "type": "integer", 
+                "nullable": true,
+                "description": "Posição no ranking do departamento"
+              },
+              "total_departamento": {
+                "type": "integer", 
+                "nullable": true,
+                "description": "Total de participantes no ranking do departamento"
+              },
+              "posicao_geral": {
+                "type": "integer", 
+                "nullable": true,
+                "description": "Posição no ranking geral da empresa"
+              }
             }
-          },
-          "atividades_recentes": {"type": "array", "items": {"type": "object"}}
-        }
+          }
+        },
+        "required": ["tipo_dashboard", "progressao", "cursos", "ranking"]
       },
       "DashboardInstrutor": {
         "type": "object",
+        "description": "Dashboard específico para usuários com role INSTRUTOR",
         "properties": {
           "tipo_dashboard": {"type": "string", "enum": ["instrutor"]},
           "metricas": {
             "type": "object",
+            "description": "Métricas gerais do instrutor",
             "properties": {
-              "total_cursos": {"type": "integer"},
-              "total_alunos": {"type": "integer"},
-              "taxa_conclusao_geral": {"type": "number"},
-              "avaliacao_media_geral": {"type": "number"},
-              "pendentes_correcao": {"type": "integer"}
-            }
+              "total_cursos": {"type": "integer", "description": "Total de cursos do instrutor"},
+              "total_alunos": {"type": "integer", "description": "Total de alunos inscritos nos cursos"},
+              "taxa_conclusao_geral": {"type": "number", "description": "Taxa média de conclusão dos cursos"},
+              "avaliacao_media_geral": {"type": "number", "description": "Avaliação média de todos os cursos"},
+              "pendentes_correcao": {"type": "integer", "description": "Número de avaliações pendentes de correção"}
+            },
+            "required": ["total_cursos", "total_alunos", "taxa_conclusao_geral", "avaliacao_media_geral", "pendentes_correcao"]
           },
           "cursos": {
             "type": "array",
+            "description": "Lista detalhada dos cursos do instrutor",
             "items": {
               "type": "object",
               "properties": {
-                "codigo": {"type": "string"},
-                "titulo": {"type": "string"},
-                "inscritos": {"type": "integer"},
-                "concluidos": {"type": "integer"},
-                "taxa_conclusao": {"type": "number"},
-                "avaliacao_media": {"type": "number", "nullable": true},
-                "status": {"type": "string"}
-              }
+                "codigo": {"type": "string", "description": "Código do curso"},
+                "titulo": {"type": "string", "description": "Título do curso"},
+                "inscritos": {"type": "integer", "description": "Número de alunos inscritos"},
+                "concluidos": {"type": "integer", "description": "Número de alunos que concluíram"},
+                "taxa_conclusao": {"type": "number", "description": "Taxa de conclusão em percentual"},
+                "avaliacao_media": {"type": "number", "nullable": true, "description": "Avaliação média do curso"},
+                "status": {"type": "string", "description": "Status do curso (Ativo/Inativo)"}
+              },
+              "required": ["codigo", "titulo", "inscritos", "concluidos", "taxa_conclusao", "status"]
             }
           },
-          "alertas": {"type": "array", "items": {"type": "object"}},
-          "atividades_recentes": {"type": "array", "items": {"type": "object"}}
-        }
+          "alertas": {
+            "type": "array", 
+            "description": "Alertas e avisos para o instrutor",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tipo": {"type": "string", "description": "Tipo do alerta"},
+                "descricao": {"type": "string", "description": "Descrição detalhada do alerta"},
+                "prioridade": {"type": "string", "enum": ["baixa", "media", "alta"]}
+              }
+            }
+          }
+        },
+        "required": ["tipo_dashboard", "metricas", "cursos", "alertas"]
       },
       "DashboardGerente": {
         "type": "object",
+        "description": "Dashboard específico para usuários com role GERENTE - na prática retorna a mesma estrutura que DashboardAdmin mas filtrado por departamento",
         "properties": {
-          "tipo_dashboard": {"type": "string", "enum": ["gerente"]},
-          "departamento": {
+          "tipo_dashboard": {"type": "string", "enum": ["administrador"], "description": "Retorna 'administrador' para compatibilidade com o frontend"},
+          "metricas_gerais": {
             "type": "object",
+            "description": "Métricas gerais do departamento do gerente",
             "properties": {
-              "nome": {"type": "string"},
-              "total_funcionarios": {"type": "integer"},
-              "funcionarios_ativos": {"type": "integer"},
-              "taxa_conclusao_cursos": {"type": "number"},
-              "xp_medio_funcionarios": {"type": "number"}
+              "total_funcionarios": {"type": "integer", "description": "Total de funcionários no departamento"},
+              "funcionarios_ativos": {"type": "integer", "description": "Funcionários ativos no departamento"},
+              "alunos_ativos": {"type": "integer", "description": "Alunos ativos no departamento"},
+              "total_instrutores": {"type": "integer", "description": "Total de instrutores no departamento"},
+              "total_cursos": {"type": "integer", "description": "Total de cursos relacionados ao departamento"},
+              "taxa_conclusao_geral": {"type": "number", "description": "Taxa média de conclusão no departamento"},
+              "inscricoes_30d": {"type": "integer", "description": "Novas inscrições nos últimos 30 dias"},
+              "avaliacao_media_plataforma": {"type": "number", "description": "Avaliação média dos cursos no departamento"}
+            },
+            "required": ["total_funcionarios", "funcionarios_ativos", "alunos_ativos", "total_instrutores", "total_cursos", "taxa_conclusao_geral", "inscricoes_30d", "avaliacao_media_plataforma"]
+          },
+          "engajamento_departamentos": {
+            "type": "array",
+            "description": "Dados de engajamento (contém apenas o departamento do gerente)",
+            "items": {
+              "type": "object",
+              "properties": {
+                "codigo": {"type": "string", "description": "Código do departamento"},
+                "nome": {"type": "string", "description": "Nome do departamento"},
+                "total_funcionarios": {"type": "integer", "description": "Total de funcionários"},
+                "xp_medio": {"type": "integer", "description": "XP médio dos funcionários"},
+                "funcionarios_ativos": {"type": "integer", "description": "Funcionários ativos"}
+              },
+              "required": ["codigo", "nome", "total_funcionarios", "xp_medio", "funcionarios_ativos"]
             }
           },
-          "top_performers": {"type": "array", "items": {"type": "object"}},
-          "cursos_departamento": {"type": "array", "items": {"type": "object"}},
-          "alertas": {"type": "array", "items": {"type": "object"}}
-        }
+          "cursos_populares": {
+            "type": "array", 
+            "description": "Lista de cursos populares do departamento",
+            "items": {"type": "object"}
+          },
+          "alertas": {
+            "type": "array", 
+            "description": "Alertas específicos do departamento",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tipo": {"type": "string"},
+                "descricao": {"type": "string"},
+                "prioridade": {"type": "string", "enum": ["baixa", "media", "alta"]}
+              }
+            }
+          },
+          "_departamento_restrito": {
+            "type": "object",
+            "description": "Informação adicional indicando restrição departamental",
+            "properties": {
+              "departamento_id": {"type": "string", "description": "ID do departamento do gerente"},
+              "departamento_nome": {"type": "string", "description": "Nome do departamento do gerente"}
+            },
+            "required": ["departamento_id", "departamento_nome"]
+          }
+        },
+        "required": ["tipo_dashboard", "metricas_gerais", "engajamento_departamentos", "cursos_populares", "alertas", "_departamento_restrito"]
       },
       "DashboardAdmin": {
         "type": "object",
+        "description": "Dashboard específico para usuários com role ADMIN",
         "properties": {
           "tipo_dashboard": {"type": "string", "enum": ["administrador"]},
           "metricas_gerais": {
             "type": "object",
+            "description": "Métricas gerais de toda a plataforma",
             "properties": {
-              "total_funcionarios": {"type": "integer"},
-              "funcionarios_ativos": {"type": "integer"},
-              "alunos_ativos": {"type": "integer"},
-              "total_instrutores": {"type": "integer"},
-              "total_cursos": {"type": "integer"},
-              "taxa_conclusao_geral": {"type": "number"},
-              "inscricoes_30d": {"type": "integer"},
-              "avaliacao_media_plataforma": {"type": "number"}
-            }
+              "total_funcionarios": {"type": "integer", "description": "Total de funcionários na empresa"},
+              "funcionarios_ativos": {"type": "integer", "description": "Funcionários ativos na empresa"},
+              "alunos_ativos": {"type": "integer", "description": "Alunos ativos na plataforma"},
+              "total_instrutores": {"type": "integer", "description": "Total de instrutores"},
+              "total_cursos": {"type": "integer", "description": "Total de cursos na plataforma"},
+              "taxa_conclusao_geral": {"type": "number", "description": "Taxa média de conclusão geral"},
+              "inscricoes_30d": {"type": "integer", "description": "Novas inscrições nos últimos 30 dias"},
+              "avaliacao_media_plataforma": {"type": "number", "description": "Avaliação média de todos os cursos"}
+            },
+            "required": ["total_funcionarios", "funcionarios_ativos", "alunos_ativos", "total_instrutores", "total_cursos", "taxa_conclusao_geral", "inscricoes_30d", "avaliacao_media_plataforma"]
           },
           "engajamento_departamentos": {
             "type": "array",
+            "description": "Dados de engajamento de todos os departamentos",
             "items": {
               "type": "object",
               "properties": {
-                "codigo": {"type": "string"},
-                "nome": {"type": "string"},
-                "total_funcionarios": {"type": "integer"},
-                "xp_medio": {"type": "integer"},
-                "funcionarios_ativos": {"type": "integer"}
+                "codigo": {"type": "string", "description": "Código do departamento"},
+                "nome": {"type": "string", "description": "Nome do departamento"},
+                "total_funcionarios": {"type": "integer", "description": "Total de funcionários no departamento"},
+                "xp_medio": {"type": "integer", "description": "XP médio dos funcionários do departamento"},
+                "funcionarios_ativos": {"type": "integer", "description": "Funcionários ativos no departamento"}
+              },
+              "required": ["codigo", "nome", "total_funcionarios", "xp_medio", "funcionarios_ativos"]
+            }
+          },
+          "cursos_populares": {
+            "type": "array", 
+            "description": "Lista dos cursos mais populares da plataforma",
+            "items": {
+              "type": "object",
+              "description": "Dados de curso popular",
+              "properties": {
+                "codigo": {"type": "string", "description": "Código do curso"},
+                "titulo": {"type": "string", "description": "Título do curso"},
+                "total_inscricoes": {"type": "integer", "description": "Total de inscrições"},
+                "taxa_conclusao": {"type": "number", "description": "Taxa de conclusão em decimal (0-1)"}
               }
             }
           },
-          "cursos_populares": {"type": "array", "items": {"type": "object"}},
-          "alertas": {"type": "array", "items": {"type": "object"}}
-        }
+          "alertas": {
+            "type": "array", 
+            "description": "Alertas e avisos do sistema",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tipo": {"type": "string", "description": "Tipo do alerta"},
+                "descricao": {"type": "string", "description": "Descrição detalhada do alerta"},
+                "prioridade": {"type": "string", "enum": ["baixa", "media", "alta"], "description": "Prioridade do alerta"}
+              },
+              "required": ["tipo", "descricao", "prioridade"]
+            }
+          }
+        },
+        "required": ["tipo_dashboard", "metricas_gerais", "engajamento_departamentos", "cursos_populares", "alertas"]
       }
     }
   }
