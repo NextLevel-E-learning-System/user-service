@@ -322,7 +322,7 @@ export const openapiSpec = {
         "summary": "Obter dashboard completo do usuário",
         "tags": ["funcionarios"],
         "security": [{"bearerAuth": []}],
-        "description": "Retorna dados completos do usuário e dashboard personalizado conforme a role:\n\n• **ALUNO**: Progressão XP/nível, cursos em andamento/concluídos, ranking departamental e geral\n• **INSTRUTOR**: Métricas dos cursos, alunos inscritos/concluídos, avaliações pendentes, alertas\n• **GERENTE**: Dados do departamento específico (mesmo formato ADMIN mas filtrado), métricas departamentais\n• **ADMIN**: Visão completa da plataforma, métricas gerais, engajamento por departamento, cursos populares\n\n**Integração com Microserviços:**\nO dashboard integra dados de múltiplos serviços:\n- `course-service`: Informações de cursos e categorias\n- `progress-service`: Progresso de aprendizagem e conclusões  \n- `gamification-service`: XP, badges e rankings\n- `assessment-service`: Avaliações e notas\n\n**Autenticação:**\nRequer header `x-user-data` (base64 JSON) ou fallback `x-user-id` fornecido pelo API Gateway.",
+        "description": "Retorna dados completos do usuário e dashboard personalizado conforme a role:\n\n• **ALUNO**: Progressão XP/nível, cursos em andamento/concluídos, ranking departamental e geral\n• **INSTRUTOR**: Métricas dos cursos, alunos inscritos/concluídos, avaliações pendentes\n• **GERENTE**: Dados do departamento específico (mesmo formato ADMIN mas filtrado), métricas departamentais\n• **ADMIN**: Visão completa da plataforma, métricas gerais, engajamento por departamento, cursos populares\n\n**Integração com Microserviços:**\nO dashboard integra dados de múltiplos serviços:\n- `course-service`: Informações de cursos e categorias\n- `progress-service`: Progresso de aprendizagem e conclusões  \n- `gamification-service`: XP, badges e rankings\n- `assessment-service`: Avaliações e notas\n\n**Notificações:**\nAlertas e notificações são gerenciados pelo `notification-service` via RabbitMQ.\n\n**Autenticação:**\nRequer header `x-user-data` (base64 JSON) ou fallback `x-user-id` fornecido pelo API Gateway.",
         "responses": {
           "200": {
             "description": "Dados completos do dashboard e usuário",
@@ -756,21 +756,9 @@ export const openapiSpec = {
               },
               "required": ["codigo", "titulo", "inscritos", "concluidos", "taxa_conclusao", "status"]
             }
-          },
-          "alertas": {
-            "type": "array", 
-            "description": "Alertas e avisos para o instrutor",
-            "items": {
-              "type": "object",
-              "properties": {
-                "tipo": {"type": "string", "description": "Tipo do alerta"},
-                "descricao": {"type": "string", "description": "Descrição detalhada do alerta"},
-                "prioridade": {"type": "string", "enum": ["baixa", "media", "alta"]}
-              }
-            }
           }
         },
-        "required": ["tipo_dashboard", "metricas", "cursos", "alertas"]
+        "required": ["tipo_dashboard", "metricas", "cursos"]
       },
       "DashboardGerente": {
         "type": "object",
@@ -812,18 +800,6 @@ export const openapiSpec = {
             "description": "Lista de cursos populares do departamento",
             "items": {"type": "object"}
           },
-          "alertas": {
-            "type": "array", 
-            "description": "Alertas específicos do departamento",
-            "items": {
-              "type": "object",
-              "properties": {
-                "tipo": {"type": "string"},
-                "descricao": {"type": "string"},
-                "prioridade": {"type": "string", "enum": ["baixa", "media", "alta"]}
-              }
-            }
-          },
           "_departamento_restrito": {
             "type": "object",
             "description": "Informação adicional indicando restrição departamental",
@@ -834,7 +810,7 @@ export const openapiSpec = {
             "required": ["departamento_id", "departamento_nome"]
           }
         },
-        "required": ["tipo_dashboard", "metricas_gerais", "engajamento_departamentos", "cursos_populares", "alertas", "_departamento_restrito"]
+        "required": ["tipo_dashboard", "metricas_gerais", "engajamento_departamentos", "cursos_populares", "_departamento_restrito"]
       },
       "DashboardAdmin": {
         "type": "object",
@@ -884,22 +860,9 @@ export const openapiSpec = {
                 "taxa_conclusao": {"type": "number", "description": "Taxa de conclusão em decimal (0-1)"}
               }
             }
-          },
-          "alertas": {
-            "type": "array", 
-            "description": "Alertas e avisos do sistema",
-            "items": {
-              "type": "object",
-              "properties": {
-                "tipo": {"type": "string", "description": "Tipo do alerta"},
-                "descricao": {"type": "string", "description": "Descrição detalhada do alerta"},
-                "prioridade": {"type": "string", "enum": ["baixa", "media", "alta"], "description": "Prioridade do alerta"}
-              },
-              "required": ["tipo", "descricao", "prioridade"]
-            }
           }
         },
-        "required": ["tipo_dashboard", "metricas_gerais", "engajamento_departamentos", "cursos_populares", "alertas"]
+        "required": ["tipo_dashboard", "metricas_gerais", "engajamento_departamentos", "cursos_populares"]
       }
     }
   }

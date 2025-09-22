@@ -194,23 +194,6 @@ async function getInstructorDashboard(userData: { id: string }) {
     const taxaConclusaoGeral = progressStats?.taxa_conclusao_geral || 0;
     const avaliacaoMediaGeral = progressStats?.avaliacao_media_geral || 0;
 
-    // Gerar alertas
-    const alertas = [];
-    if (taxaConclusaoGeral < 70) {
-      alertas.push({
-        tipo: 'Taxa de conclusão baixa',
-        descricao: `Taxa geral de ${taxaConclusaoGeral}% está abaixo do ideal (70%)`,
-        prioridade: 'alta'
-      });
-    }
-    if (pendentesCorrecao > 10) {
-      alertas.push({
-        tipo: 'Muitas avaliações pendentes',
-        descricao: `${pendentesCorrecao} avaliações aguardando correção`,
-        prioridade: 'media'
-      });
-    }
-
     return {
       tipo_dashboard: 'instrutor',
       metricas: {
@@ -236,16 +219,14 @@ async function getInstructorDashboard(userData: { id: string }) {
         taxa_conclusao: curso.taxa_conclusao || 0,
         avaliacao_media: curso.avaliacao_media || null,
         status: curso.ativo ? 'Ativo' : 'Inativo'
-      })),
-      alertas
+      }))
     };
   } catch (error) {
     console.error('[dashboard] Error getting instructor dashboard:', error);
     return {
       tipo_dashboard: 'instrutor',
       metricas: { total_cursos: 0, total_alunos: 0 },
-      cursos: [],
-      alertas: [],
+      cursos: []
     };
   }
 }
@@ -295,17 +276,6 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
       return rows;
     });
 
-    // Gerar alertas do departamento
-    const alertas = [];
-    const taxaConclusao = departmentStats?.taxa_conclusao || 0;
-    if (taxaConclusao < 70) {
-      alertas.push({
-        tipo: 'Taxa de conclusão baixa',
-        descricao: `Taxa do departamento ${userData.departamento_nome}: ${taxaConclusao}% está abaixo do ideal`,
-        prioridade: 'alta'
-      });
-    }
-
     return {
       tipo_dashboard: 'administrador', // Mesmo tipo que ADMIN para compatibilidade
       metricas_gerais: {
@@ -314,7 +284,7 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
         alunos_ativos: departmentUsers?.alunos_ativos || 0,
         total_instrutores: departmentUsers?.total_instrutores || 0,
         total_cursos: departmentCourses?.total_cursos || 0,
-        taxa_conclusao_geral: taxaConclusao,
+        taxa_conclusao_geral: departmentStats?.taxa_conclusao || 0,
         inscricoes_30d: departmentStats?.inscricoes_30d || 0,
         avaliacao_media_plataforma: departmentStats?.avaliacao_media || 0
       },
@@ -332,7 +302,6 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
         funcionarios_ativos: parseInt(dept.funcionarios_ativos)
       })),
       cursos_populares: [],
-      alertas,
       // Adicionar flag para indicar que é um gerente
       _departamento_restrito: {
         departamento_id: userData.departamento_id,
@@ -351,8 +320,7 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
         taxa_conclusao_geral: 0
       },
       engajamento_departamentos: [],
-      cursos_populares: [],
-      alertas: []
+      cursos_populares: []
     };
   }
 }
@@ -400,17 +368,6 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
     // Buscar cursos populares
     const cursosPopulares = await fetchFromService(`${COURSE_SERVICE_URL}/courses/v1?limit=5&orderBy=total_inscricoes&order=desc`);
 
-    // Gerar alertas do sistema
-    const alertas = [];
-    const taxaConclusaoGeral = progressStats?.taxa_conclusao_geral || 0;
-    if (taxaConclusaoGeral < 70) {
-      alertas.push({
-        tipo: 'Taxa de conclusão baixa',
-        descricao: `Taxa geral de ${taxaConclusaoGeral}% está abaixo do ideal`,
-        prioridade: 'alta'
-      });
-    }
-
     return {
       tipo_dashboard: 'administrador',
       metricas_gerais: {
@@ -419,7 +376,6 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
         alunos_ativos: usersStats?.alunos_ativos || 0,
         total_instrutores: usersStats?.total_instrutores || 0,
         total_cursos: coursesStats?.total_cursos || 0,
-        taxa_conclusao_geral: taxaConclusaoGeral,
         inscricoes_30d: progressStats?.inscricoes_30d || 0,
       },
       engajamento_departamentos: departmentEngagement.map((dept: { 
@@ -435,8 +391,7 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
         xp_medio: Math.round(dept.xp_medio || 0),
         funcionarios_ativos: parseInt(dept.funcionarios_ativos)
       })),
-      cursos_populares: cursosPopulares?.items || [],
-      alertas
+      cursos_populares: cursosPopulares?.items || []
     };
   } catch (error) {
     console.error('[dashboard] Error getting admin dashboard:', error);
