@@ -376,6 +376,7 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
         alunos_ativos: usersStats?.alunos_ativos || 0,
         total_instrutores: usersStats?.total_instrutores || 0,
         total_cursos: coursesStats?.total_cursos || 0,
+        taxa_conclusao_media: progressStats?.taxa_conclusao_media || 0,
         inscricoes_30d: progressStats?.inscricoes_30d || 0,
       },
       engajamento_departamentos: departmentEngagement.map((dept: { 
