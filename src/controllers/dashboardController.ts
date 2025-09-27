@@ -125,9 +125,9 @@ export const getDashboard = async (req: Request, res: Response) => {
 // Dashboard do Funcionário/Aluno
 async function getEmployeeDashboard(userData: { id: string; xp_total?: number; departamento_id?: string }) {
   try {
-    // Buscar progresso no progress-service
+    // Buscar inscrições e agregados no progress-service (rota unificada)
     const progressData = await fetchFromService(
-      `${PROGRESS_SERVICE_URL}/progress/v1/user/${userData.id}/dashboard`
+      `${PROGRESS_SERVICE_URL}/progress/v1/inscricoes/usuario/${userData.id}`
     );
 
     // Buscar gamificação
@@ -152,7 +152,8 @@ async function getEmployeeDashboard(userData: { id: string; xp_total?: number; d
       },
       cursos: {
         em_andamento: progressData?.cursos_em_andamento || [],
-        concluidos: progressData?.cursos_concluidos || []
+        concluidos: progressData?.cursos_concluidos || [],
+        todas_inscricoes: progressData?.items || []
       },
       ranking: {
         posicao_departamento: gamificationData?.ranking_departamento?.posicao || null,
