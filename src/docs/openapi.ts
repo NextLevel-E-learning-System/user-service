@@ -6,7 +6,7 @@ export const openapiSpec = {
     "description": "Serviço de usuários com departamentos, cargos e funcionários. Endpoint /funcionarios/dashboard retorna dados completos do usuário e dashboard em uma única resposta."
   },
   "paths": {
-    "/users/v1/departamentos": {
+  "/users/v1/departamentos": {
       "get": {
         "summary": "Listar departamentos (público)",
         "tags": ["departamentos"],
@@ -16,20 +16,23 @@ export const openapiSpec = {
             "description": "Lista de departamentos ativos (apenas código e nome)",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {"$ref": "#/components/schemas/DepartamentoPublico"}
-                },
-                "example": [
-                  {
-                    "codigo": "TI",
-                    "nome": "Tecnologia da Informação"
-                  },
-                  {
-                    "codigo": "RH", 
-                    "nome": "Recursos Humanos"
-                  }
-                ]
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {"$ref": "#/components/schemas/DepartamentoPublico"}
+                        },
+                        "mensagem": {"type": "string"}
+                      }
+                    },
+                    "example": {
+                      "items": [
+                        {"codigo": "TI", "nome": "Tecnologia da Informação"},
+                        {"codigo": "RH", "nome": "Recursos Humanos"}
+                      ],
+                      "mensagem": "Departamentos listados com sucesso"
+                    }
               }
             }
           }
@@ -52,9 +55,14 @@ export const openapiSpec = {
             "description": "Departamento criado",
             "content": {
               "application/json": {
-                "schema": {"$ref": "#/components/schemas/DepartamentoCompleto"}
+                "schema": {"type": "object", "properties": {"departamento": {"$ref": "#/components/schemas/DepartamentoCompleto"}, "mensagem": {"type": "string"}}},
+                "example": {"departamento": {"codigo": "TI", "nome": "Tecnologia"}, "mensagem": "Departamento criado com sucesso"}
               }
             }
+          },
+          "400": {"description": "Dados inválidos", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "dados_invalidos", "mensagem": "Campos obrigatórios ausentes"}}}},
+          "409": {"description": "Conflito (código já existente)", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "departamento_ja_existente", "mensagem": "Já existe departamento com este código"}}}},
+          "500": {"description": "Erro interno", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "erro_interno", "mensagem": "Erro interno do servidor"}}}}
           }
         }
       }
@@ -71,23 +79,29 @@ export const openapiSpec = {
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {"$ref": "#/components/schemas/DepartamentoCompleto"}
-                },
-                "example": [
-                  {
-                    "codigo": "TI",
-                    "nome": "Tecnologia da Informação", 
-                    "descricao": "Responsável por sistemas e infraestrutura",
-                    "gestor_funcionario_id": "123e4567-e89b-12d3-a456-426614174000",
-                    "gestor_nome": "João Silva",
-                    "ativo": true,
-                    "total_funcionarios": 15,
-                    "criado_em": "2024-01-15T10:00:00Z",
-                    "atualizado_em": "2024-03-20T14:30:00Z",
-                    "inactivated_at": null
+                  "type": "object",
+                  "properties": {
+                    "items": { "type": "array", "items": {"$ref": "#/components/schemas/DepartamentoCompleto"}},
+                    "mensagem": {"type": "string"}
                   }
-                ]
+                },
+                "example": {
+                  "items": [
+                    {
+                      "codigo": "TI",
+                      "nome": "Tecnologia da Informação", 
+                      "descricao": "Responsável por sistemas e infraestrutura",
+                      "gestor_funcionario_id": "123e4567-e89b-12d3-a456-426614174000",
+                      "gestor_nome": "João Silva",
+                      "ativo": true,
+                      "total_funcionarios": 15,
+                      "criado_em": "2024-01-15T10:00:00Z",
+                      "atualizado_em": "2024-03-20T14:30:00Z",
+                      "inactivated_at": null
+                    }
+                  ],
+                  "mensagem": "Departamentos listados com sucesso"
+                }
               }
             }
           }
@@ -107,13 +121,15 @@ export const openapiSpec = {
             "description": "Dados completos do departamento",
             "content": {
               "application/json": {
-                "schema": {"$ref": "#/components/schemas/DepartamentoCompleto"}
+                "schema": { "type": "object", "properties": { "departamento": {"$ref": "#/components/schemas/DepartamentoCompleto"}, "mensagem": {"type": "string"} } }
               }
             }
           },
           "404": {
-            "description": "Departamento não encontrado"
-          }
+            "description": "Departamento não encontrado",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "departamento_nao_encontrado", "mensagem": "Departamento não encontrado"}}}
+          },
+          "500": {"description": "Erro interno", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "erro_interno", "mensagem": "Erro interno do servidor"}}}}
         }
       },
       "put": {
@@ -136,10 +152,14 @@ export const openapiSpec = {
             "description": "Departamento atualizado",
             "content": {
               "application/json": {
-                "schema": {"$ref": "#/components/schemas/DepartamentoCompleto"}
+                "schema": { "type": "object", "properties": { "departamento": {"$ref": "#/components/schemas/DepartamentoCompleto"}, "mensagem": {"type": "string"} } },
+                "example": {"departamento": {"codigo": "TI", "nome": "Tecnologia"}, "mensagem": "Departamento atualizado com sucesso"}
               }
             }
-          }
+          },
+          "404": {"description": "Departamento não encontrado", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "departamento_nao_encontrado", "mensagem": "Departamento não encontrado"}}}},
+          "400": {"description": "Dados inválidos", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "dados_invalidos", "mensagem": "Nenhum campo para atualizar"}}}},
+          "500": {"description": "Erro interno", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "erro_interno", "mensagem": "Erro interno do servidor"}}}}
         }
       },
       "delete": {
@@ -150,7 +170,10 @@ export const openapiSpec = {
           {"name": "codigo", "in": "path", "required": true, "schema": {"type": "string"}}
         ],
         "responses": {
-          "204": {"description": "Departamento desativado"}
+          "200": {"description": "Departamento desativado", "content": {"application/json": {"schema": {"type": "object", "properties": {"mensagem": {"type": "string"}}}, "example": {"mensagem": "Departamento desativado com sucesso"}}}},
+          "404": {"description": "Departamento não encontrado", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "departamento_nao_encontrado", "mensagem": "Departamento não encontrado"}}}},
+          "409": {"description": "Conflito - departamento com vínculos", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "examples": {"departamento_com_categorias": {"value": {"erro": "departamento_com_categorias", "mensagem": "Departamento possui categorias associadas"}}, "departamento_com_funcionarios": {"value": {"erro": "departamento_com_funcionarios", "mensagem": "Departamento possui funcionários ativos"}}}}}},
+          "500": {"description": "Erro interno", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "erro_interno", "mensagem": "Erro interno do servidor"}}}}
         }
       }
     },
@@ -163,10 +186,7 @@ export const openapiSpec = {
             "description": "Lista de cargos",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {"$ref": "#/components/schemas/Cargo"}
-                }
+                "schema": { "type": "object", "properties": { "items": {"type": "array", "items": {"$ref": "#/components/schemas/Cargo"}}, "mensagem": {"type": "string"} } }
               }
             }
           }
@@ -189,10 +209,14 @@ export const openapiSpec = {
             "description": "Cargo criado",
             "content": {
               "application/json": {
-                "schema": {"$ref": "#/components/schemas/Cargo"}
+                "schema": { "type": "object", "properties": { "cargo": {"$ref": "#/components/schemas/Cargo"}, "mensagem": {"type": "string"} } },
+                "example": {"cargo": {"codigo": "DEVJR", "nome": "Dev Júnior"}, "mensagem": "Cargo criado com sucesso"}
               }
             }
-          }
+          },
+          "409": {"description": "Conflito - cargo já existe", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "cargo_ja_existente", "mensagem": "Já existe cargo com este código"}}}},
+          "400": {"description": "Dados inválidos", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "dados_invalidos", "mensagem": "Campos obrigatórios ausentes"}}}},
+          "500": {"description": "Erro interno", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "erro_interno", "mensagem": "Erro interno do servidor"}}}}
         }
       }
     },
@@ -217,10 +241,14 @@ export const openapiSpec = {
             "description": "Cargo atualizado",
             "content": {
               "application/json": {
-                "schema": {"$ref": "#/components/schemas/Cargo"}
+                "schema": { "type": "object", "properties": { "cargo": {"$ref": "#/components/schemas/Cargo"}, "mensagem": {"type": "string"} } },
+                "example": {"cargo": {"codigo": "DEVJR", "nome": "Dev Júnior"}, "mensagem": "Cargo atualizado com sucesso"}
               }
             }
-          }
+          },
+          "404": {"description": "Cargo não encontrado", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "cargo_nao_encontrado", "mensagem": "Cargo não encontrado"}}}},
+          "409": {"description": "Conflito - nome já existente", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "nome_ja_utilizado", "mensagem": "Já existe cargo com este nome"}}}},
+          "500": {"description": "Erro interno", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "erro_interno", "mensagem": "Erro interno do servidor"}}}}
         }
       },
       "delete": {
@@ -231,7 +259,10 @@ export const openapiSpec = {
           {"name": "codigo", "in": "path", "required": true, "schema": {"type": "string"}}
         ],
         "responses": {
-          "204": {"description": "Cargo deletado"}
+          "200": {"description": "Cargo deletado", "content": {"application/json": {"schema": {"type": "object", "properties": {"mensagem": {"type": "string"}}}, "example": {"mensagem": "Cargo deletado com sucesso"}}}},
+          "404": {"description": "Cargo não encontrado", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "cargo_nao_encontrado", "mensagem": "Cargo não encontrado"}}}},
+          "409": {"description": "Conflito - cargo em uso", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "cargo_em_uso", "mensagem": "Existem funcionários vinculados a este cargo"}}}},
+          "500": {"description": "Erro interno", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "erro_interno", "mensagem": "Erro interno do servidor"}}}}
         }
       }
     },
@@ -252,10 +283,14 @@ export const openapiSpec = {
             "description": "Funcionário registrado",
             "content": {
               "application/json": {
-                "schema": {"$ref": "#/components/schemas/Funcionario"}
+                "schema": { "type": "object", "properties": { "funcionario": {"$ref": "#/components/schemas/Funcionario"}, "mensagem": {"type": "string"} } },
+                "example": {"funcionario": {"id": "uuid", "nome": "João"}, "mensagem": "Funcionário criado com sucesso"}
               }
             }
-          }
+          },
+          "409": {"description": "Conflito - email ou cpf já cadastrado", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "examples": {"email_ja_cadastrado": {"value": {"erro": "email_ja_cadastrado", "mensagem": "Email já está cadastrado no sistema"}}, "cpf_ja_cadastrado": {"value": {"erro": "cpf_ja_cadastrado", "mensagem": "CPF já está cadastrado no sistema"}}}}}},
+          "400": {"description": "Dados inválidos", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "dados_invalidos", "mensagem": "Nome e email são obrigatórios"}}}},
+          "500": {"description": "Erro interno", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "erro_interno", "mensagem": "Erro interno do servidor"}}}}
         }
       }
     },
@@ -269,13 +304,12 @@ export const openapiSpec = {
             "description": "Lista de funcionários",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {"$ref": "#/components/schemas/Funcionario"}
-                }
+                "schema": { "type": "object", "properties": { "items": {"type": "array", "items": {"$ref": "#/components/schemas/Funcionario"}}, "mensagem": {"type": "string"} } },
+                "example": {"items": [{"id": "uuid", "nome": "João"}], "mensagem": "Funcionários listados com sucesso"}
               }
             }
-          }
+          },
+          "500": {"description": "Erro interno", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "erro_interno", "mensagem": "Erro interno do servidor"}}}}
         }
       }
     },
@@ -310,10 +344,13 @@ export const openapiSpec = {
             "description": "Role atualizada",
             "content": {
               "application/json": {
-                "schema": {"$ref": "#/components/schemas/Funcionario"}
+                "schema": { "type": "object", "properties": { "funcionario": {"$ref": "#/components/schemas/Funcionario"}, "mensagem": {"type": "string"}, "granted_by": {"type": "string", "format": "uuid"} } },
+                "example": {"funcionario": {"id": "uuid", "role": "INSTRUTOR"}, "granted_by": "uuid-admin", "mensagem": "Role atualizada para INSTRUTOR"}
               }
             }
-          }
+          },
+          "404": {"description": "Funcionário não encontrado", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "funcionario_nao_encontrado", "mensagem": "Funcionário não encontrado"}}}},
+          "500": {"description": "Erro interno", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "erro_interno", "mensagem": "Erro interno do servidor"}}}}
         }
       }
     },
@@ -376,7 +413,8 @@ export const openapiSpec = {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {"type": "string", "example": "user_not_authenticated"}
+                    "erro": {"type": "string", "example": "user_not_authenticated"},
+                    "mensagem": {"type": "string", "example": "Usuário não autenticado"}
                   }
                 }
               }
@@ -389,7 +427,8 @@ export const openapiSpec = {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {"type": "string", "example": "user_not_found"}
+                    "erro": {"type": "string", "example": "user_not_found"},
+                    "mensagem": {"type": "string", "example": "Usuário não encontrado"}
                   }
                 }
               }
@@ -402,7 +441,8 @@ export const openapiSpec = {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "error": {"type": "string", "example": "internal_server_error"}
+                    "erro": {"type": "string", "example": "internal_server_error"},
+                    "mensagem": {"type": "string", "example": "Erro interno ao gerar dashboard"}
                   }
                 }
               }
@@ -431,22 +471,20 @@ export const openapiSpec = {
         },
         "responses": {
           "200": {
-            "description": "Email de reset enviado",
+            "description": "Reset processado",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "sucesso": {"type": "boolean"}
-                  }
-                }
+                "schema": {"type": "object", "properties": {"mensagem": {"type": "string"}}},
+                "example": {"mensagem": "Senha redefinida e evento enviado."}
               }
             }
-          }
+          },
+          "400": {"description": "Email obrigatório", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "email_obrigatorio", "mensagem": "Email é obrigatório"}}}},
+          "404": {"description": "Usuário não encontrado", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "usuario_nao_encontrado", "mensagem": "Usuário não encontrado"}}}},
+          "500": {"description": "Erro interno", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}, "example": {"erro": "erro_interno", "mensagem": "Erro interno do servidor"}}}}
         }
       }
-    }
-  },
+    },
   "components": {
     "securitySchemes": {
       "bearerAuth": {
@@ -456,6 +494,15 @@ export const openapiSpec = {
       }
     },
     "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "erro": {"type": "string"},
+          "mensagem": {"type": "string"}
+        },
+        "required": ["erro", "mensagem"],
+        "description": "Formato padrão para respostas de erro"
+      },
       "DepartamentoPublico": {
         "type": "object",
         "description": "Versão pública simplificada do departamento - apenas informações básicas para uso em formulários de cadastro",
@@ -866,4 +913,4 @@ export const openapiSpec = {
       }
     }
   }
-} as const;
+};

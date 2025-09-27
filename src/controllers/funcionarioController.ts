@@ -76,7 +76,7 @@ export const registerFuncionario = async (req: Request, res: Response) => {
 export const listFuncionarios = async (_req: Request, res: Response) => {
   await withClient(async (c) => {
     const { rows } = await c.query(`SELECT * FROM user_service.funcionarios WHERE ativo=true`);
-    res.json(rows);
+    res.json({ items: rows, mensagem: 'Funcionários listados com sucesso' });
   });
 };
 
@@ -84,12 +84,6 @@ export const updateFuncionarioRole = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { role } = req.body;
   const actor_id = (req as Request & { userId: string }).userId;
-
-  // Validar role
-  const validRoles = ['ADMIN', 'INSTRUTOR', 'GERENTE', 'ALUNO'];
-  if (!validRoles.includes(role)) {
-    return res.status(400).json({ erro: 'role_invalida', mensagem: 'Role inválida. Use: ADMIN, INSTRUTOR, GERENTE ou ALUNO' });
-  }
 
   await withClient(async (c) => {
     // Atualizar role diretamente na tabela funcionarios
