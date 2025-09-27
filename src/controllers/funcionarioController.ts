@@ -14,13 +14,13 @@ export const registerFuncionario = async (req: Request, res: Response) => {
     
     // Validação básica
     if (!nome || !email) {
-      return res.status(400).json({ error: "Nome e email são obrigatórios" });
+      return res.status(400).json({ erro: 'dados_invalidos', mensagem: 'Nome e email são obrigatórios' });
     }
 
     // Validar role
     const validRoles = ['ADMIN', 'INSTRUTOR', 'GERENTE', 'ALUNO'];
     if (!validRoles.includes(role)) {
-      return res.status(400).json({ error: 'Role inválida. Use: ADMIN, INSTRUTOR, GERENTE ou ALUNO' });
+      return res.status(400).json({ erro: 'role_invalida', mensagem: 'Role inválida. Use: ADMIN, INSTRUTOR, GERENTE ou ALUNO' });
     }
 
     // IMPORTANTE: Validar CPF ANTES de criar usuário no auth-service
@@ -50,7 +50,7 @@ export const registerFuncionario = async (req: Request, res: Response) => {
       // Emitir evento adicional do user-service (se necessário)
       await emitUserCreated(funcionario.email, undefined as unknown as string, funcionario.id, funcionario.nome);
 
-      res.status(201).json(funcionario);
+  res.status(201).json({ funcionario, mensagem: 'Funcionário criado com sucesso' });
     });
   } catch (error) {
     console.error('Erro ao registrar funcionário:', error);
@@ -58,18 +58,18 @@ export const registerFuncionario = async (req: Request, res: Response) => {
     // Tratar erros específicos
     if (error instanceof Error) {
       if (error.message === 'cpf_ja_cadastrado') {
-        return res.status(409).json({ error: 'cpf_ja_cadastrado', message: 'CPF já está cadastrado no sistema' });
+  return res.status(409).json({ erro: 'cpf_ja_cadastrado', mensagem: 'CPF já está cadastrado no sistema' });
       }
       if (error.message === 'email_ja_cadastrado') {
-        return res.status(409).json({ error: 'email_ja_cadastrado', message: 'Email já está cadastrado no sistema' });
+  return res.status(409).json({ erro: 'email_ja_cadastrado', mensagem: 'Email já está cadastrado no sistema' });
       }
       if (error.message === 'dominio_nao_permitido') {
-        return res.status(400).json({ error: 'dominio_nao_permitido', message: 'Domínio de email não permitido' });
+  return res.status(400).json({ erro: 'dominio_nao_permitido', mensagem: 'Domínio de email não permitido' });
       }
     }
     
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-    res.status(500).json({ error: 'Erro interno do servidor', details: errorMessage });
+  res.status(500).json({ erro: 'erro_interno', mensagem: 'Erro interno do servidor', detalhes: errorMessage });
   }
 };
 
@@ -88,7 +88,7 @@ export const updateFuncionarioRole = async (req: Request, res: Response) => {
   // Validar role
   const validRoles = ['ADMIN', 'INSTRUTOR', 'GERENTE', 'ALUNO'];
   if (!validRoles.includes(role)) {
-    return res.status(400).json({ error: 'Role inválida. Use: ADMIN, INSTRUTOR, GERENTE ou ALUNO' });
+    return res.status(400).json({ erro: 'role_invalida', mensagem: 'Role inválida. Use: ADMIN, INSTRUTOR, GERENTE ou ALUNO' });
   }
 
   await withClient(async (c) => {
@@ -101,20 +101,20 @@ export const updateFuncionarioRole = async (req: Request, res: Response) => {
     `, [role, id]);
 
     if (rows.length === 0) {
-      return res.status(404).json({ error: 'Funcionário não encontrado' });
+      return res.status(404).json({ erro: 'funcionario_nao_encontrado', mensagem: 'Funcionário não encontrado' });
     }
 
     await emitUserRoleChanged(id, role);
 
     res.json({ 
       funcionario: rows[0], 
-      message: `Role atualizada para ${role}`,
-      granted_by: actor_id 
+      granted_by: actor_id,
+      mensagem: `Role atualizada para ${role}`
     });
   });
 };export const requestPasswordReset = async (req: Request, res: Response) => {
   const { email } = req.body;
-  if (!email) return res.status(400).json({ error: "email_obrigatorio" });
+  if (!email) return res.status(400).json({ erro: 'email_obrigatorio', mensagem: 'Email é obrigatório' });
 
   const novaSenha = Math.random().toString().slice(-6);
   await resetPassword(email, novaSenha);
@@ -124,11 +124,11 @@ export const updateFuncionarioRole = async (req: Request, res: Response) => {
       `SELECT id FROM user_service.funcionarios WHERE email=$1 AND ativo=true`,
       [email]
     );
-    if (rows.length === 0) return res.status(404).json({ error: "usuario_nao_encontrado" });
+  if (rows.length === 0) return res.status(404).json({ erro: 'usuario_nao_encontrado', mensagem: 'Usuário não encontrado' });
     const funcionario = rows[0];
 
     await emitUserPasswordReset(email, funcionario.id, novaSenha);
 
-    res.json({ message: 'Senha redefinida e evento enviado.' });
+  res.json({ mensagem: 'Senha redefinida e evento enviado.' });
   });
 };

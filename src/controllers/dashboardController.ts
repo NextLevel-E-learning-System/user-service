@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { withClient } from "../config/db.js";
-import { HttpError } from "../utils/httpError.js";
+// Removido uso de HttpError; respostas padronizadas diretas
 
 // URLs dos outros microserviços
 const COURSE_SERVICE_URL = process.env.COURSE_SERVICE_URL || 'http://course-service:3333';
@@ -71,13 +71,13 @@ export const getDashboard = async (req: Request, res: Response) => {
     
     if (!funcionarioId) {
       console.log('[dashboard] No funcionario ID found, returning 401');
-      throw new HttpError(401, 'user_not_authenticated');
+  return res.status(401).json({ erro: 'user_not_authenticated', mensagem: 'Usuário não autenticado' });
     }
 
     // Buscar dados do usuário
     const userData = await getUserData(funcionarioId);
     if (!userData) {
-      throw new HttpError(404, 'user_not_found');
+  return res.status(404).json({ erro: 'user_not_found', mensagem: 'Usuário não encontrado' });
     }
 
     // Determinar role principal (direto do campo role)
@@ -112,15 +112,13 @@ export const getDashboard = async (req: Request, res: Response) => {
         xp_total: userData.xp_total,
         roles: [userData.role || 'ALUNO']
       },
-      dashboard: dashboardData
+      dashboard: dashboardData,
+      mensagem: 'Dashboard carregado com sucesso'
     });
 
   } catch (error) {
     console.error('[dashboard] Error getting dashboard:', error);
-    if (error instanceof HttpError) {
-      return res.status(error.status || 400).json({ error: error.message });
-    }
-    res.status(500).json({ error: 'internal_server_error' });
+    res.status(500).json({ erro: 'internal_server_error', mensagem: 'Erro interno ao gerar dashboard' });
   }
 };
 

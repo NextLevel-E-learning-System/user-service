@@ -4,7 +4,7 @@ import { withClient } from "../config/db.js";
 export const listCargos = async (_req: Request, res: Response) => {
   await withClient(async (c) => {
     const { rows } = await c.query(`SELECT codigo, nome FROM user_service.cargos`);
-    res.json(rows);
+  res.json({ items: rows, mensagem: 'Cargos listados com sucesso' });
   });
 };
 
@@ -15,7 +15,7 @@ export const createCargo = async (req: Request, res: Response) => {
       `INSERT INTO user_service.cargos(codigo, nome) VALUES ($1,$2) RETURNING *`,
       [codigo, nome]
     );
-    res.status(201).json(rows[0]);
+  res.status(201).json({ cargo: rows[0], mensagem: 'Cargo criado com sucesso' });
   });
 };
 
@@ -27,7 +27,7 @@ export const updateCargo = async (req: Request, res: Response) => {
       `UPDATE user_service.cargos SET nome=$1, atualizado_em=now() WHERE codigo=$2 RETURNING *`,
       [nome, codigo]
     );
-    res.json(rows[0]);
+  res.json({ cargo: rows[0], mensagem: 'Cargo atualizado com sucesso' });
   });
 };
 

@@ -10,7 +10,7 @@ export const listDepartamentos = async (_req: Request, res: Response) => {
       FROM user_service.departamentos d
       ORDER BY d.nome
     `);
-    res.json(rows);
+  res.json({ items: rows, mensagem: 'Departamentos listados com sucesso' });
   });
 };
 
@@ -35,7 +35,7 @@ export const listAllDepartamentos = async (_req: Request, res: Response) => {
       GROUP BY d.codigo, d.nome, d.descricao, d.gestor_funcionario_id, f.nome, f.email, d.criado_em, d.atualizado_em
       ORDER BY d.nome
     `);
-    res.json(rows);
+  res.json({ items: rows, mensagem: 'Departamentos listados com sucesso' });
   });
 };
 
@@ -63,10 +63,10 @@ export const getDepartamento = async (req: Request, res: Response) => {
     `, [codigo]);
     
     if (rows.length === 0) {
-      return res.status(404).json({ error: 'Departamento não encontrado' });
+  return res.status(404).json({ erro: 'departamento_nao_encontrado', mensagem: 'Departamento não encontrado' });
     }
     
-    res.json(rows[0]);
+  res.json({ departamento: rows[0], mensagem: 'Departamento obtido com sucesso' });
   });
 };
 
@@ -78,7 +78,7 @@ export const createDepartamento = async (req: Request, res: Response) => {
        VALUES ($1,$2,$3,$4) RETURNING *`,
       [codigo, nome, descricao, gestor_funcionario_id]
     );
-    res.status(201).json(rows[0]);
+  res.status(201).json({ departamento: rows[0], mensagem: 'Departamento criado com sucesso' });
   });
 };
 
@@ -92,7 +92,7 @@ export const updateDepartamento = async (req: Request, res: Response) => {
        WHERE codigo=$4 RETURNING *`,
       [nome, descricao, gestor_funcionario_id, codigo]
     );
-    res.json(rows[0]);
+  res.json({ departamento: rows[0], mensagem: 'Departamento atualizado com sucesso' });
   });
 };
 
@@ -107,7 +107,7 @@ export const deleteDepartamento = async (req: Request, res: Response) => {
     );
     
     if (deptCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Departamento não encontrado' });
+      return res.status(404).json({ erro: 'departamento_nao_encontrado', mensagem: 'Departamento não encontrado' });
     }
 
     // Verificar se há categorias associadas a este departamento
@@ -119,7 +119,8 @@ export const deleteDepartamento = async (req: Request, res: Response) => {
     const totalCategorias = parseInt(categoriasAssociadas.rows[0].count);
     if (totalCategorias > 0) {
       return res.status(409).json({ 
-        error: `Não é possível excluir departamento que possui ${totalCategorias} categoria(s) associada(s)` 
+        erro: 'departamento_com_categorias',
+        mensagem: `Não é possível excluir departamento que possui ${totalCategorias} categoria(s) associada(s)` 
       });
     }
 
@@ -132,7 +133,8 @@ export const deleteDepartamento = async (req: Request, res: Response) => {
     const totalFuncionarios = parseInt(funcionariosAssociados.rows[0].count);
     if (totalFuncionarios > 0) {
       return res.status(409).json({ 
-        error: `Não é possível excluir departamento que possui ${totalFuncionarios} funcionário(s) ativo(s)` 
+        erro: 'departamento_com_funcionarios',
+        mensagem: `Não é possível excluir departamento que possui ${totalFuncionarios} funcionário(s) ativo(s)` 
       });
     }
 
