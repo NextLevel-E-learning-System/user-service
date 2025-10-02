@@ -37,7 +37,7 @@ export const listInstructors = async (_req: Request, res: Response) => {
           i.atualizado_em
         FROM user_service.instrutores i
         INNER JOIN user_service.funcionarios f ON i.funcionario_id = f.id
-        LEFT JOIN user_service.departamentos d ON f.departamento_id = d.id
+        LEFT JOIN user_service.departamentos d ON f.departamento_id = d.codigo
         WHERE f.ativo = true
         ORDER BY f.nome ASC
       `);
@@ -97,7 +97,7 @@ export const getInstructor = async (req: Request, res: Response) => {
           i.atualizado_em
         FROM user_service.instrutores i
         INNER JOIN user_service.funcionarios f ON i.funcionario_id = f.id
-        LEFT JOIN user_service.departamentos d ON f.departamento_id = d.id
+        LEFT JOIN user_service.departamentos d ON f.departamento_id = d.codigo
         WHERE i.funcionario_id = $1
       `, [id]);
 
