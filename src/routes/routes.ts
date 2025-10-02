@@ -3,6 +3,7 @@ import * as deptCtrl from "../controllers/departamentoController.js";
 import * as cargoCtrl from "../controllers/cargoController.js";
 import * as funcCtrl from "../controllers/funcionarioController.js";
 import * as dashboardCtrl from "../controllers/dashboardController.js";
+import * as instructorCtrl from "../controllers/instructorController.js";
  
 export const publicRouter = Router();
 publicRouter.get("/departamentos", deptCtrl.listDepartamentos);
@@ -26,3 +27,11 @@ export const funcionarioRouter = Router();
 funcionarioRouter.get("/", funcCtrl.listFuncionarios);
 funcionarioRouter.get("/dashboard", dashboardCtrl.getDashboard);
 funcionarioRouter.put("/:id/role", funcCtrl.updateFuncionarioRole);
+
+export const instructorRouter = Router();
+instructorRouter.get("/", instructorCtrl.listInstructors);
+instructorRouter.get("/:id", instructorCtrl.getInstructor);
+instructorRouter.post("/", instructorCtrl.createInstructor);
+instructorRouter.put("/:id", instructorCtrl.updateInstructor);
+instructorRouter.delete("/:id", instructorCtrl.deleteInstructor);
+instructorRouter.put("/:id/toggle-status", instructorCtrl.toggleInstructorStatus);

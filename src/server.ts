@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { logger } from './config/logger.js';
 import { loadOpenApi } from './config/openapi.js';
-import { cargoRouter, departamentoRouter, funcionarioRouter, publicRouter } from './routes/routes.js';
+import { cargoRouter, departamentoRouter, funcionarioRouter, instructorRouter, publicRouter } from './routes/routes.js';
 
 export function createServer() {
   const app = express();
@@ -24,6 +24,7 @@ export function createServer() {
 
   app.use('/users/v1', publicRouter);
   app.use('/users/v1/funcionarios', funcionarioRouter);
+  app.use('/users/v1/instrutores', instructorRouter);
   app.use('/users/v1/departamentos', departamentoRouter);
   app.use('/users/v1/cargos', cargoRouter);
   
