@@ -121,7 +121,7 @@ async function getEmployeeDashboard(userData: { id: string; xp_total?: number; d
         ORDER BY i.data_inscricao DESC
       `, [userData.id]);
 
-      // 2. Buscar badges conquistados
+       // 2. Buscar badges conquistados
       const badgesResult = await c.query(`
         SELECT 
           b.codigo,
@@ -138,15 +138,9 @@ async function getEmployeeDashboard(userData: { id: string; xp_total?: number; d
       // 3. Buscar ranking
       const rankingResult = await c.query(`
         SELECT 
-          rm.posicao as posicao_departamento,
-          (SELECT COUNT(*) FROM gamification_service.ranking_mensal WHERE departamento_id = $2 AND mes_ano = DATE_TRUNC('month', CURRENT_DATE)) as total_departamento,
           (SELECT COUNT(*) FROM gamification_service.ranking_mensal WHERE mes_ano = DATE_TRUNC('month', CURRENT_DATE)) as total_geral,
           ROW_NUMBER() OVER (ORDER BY f.xp_total DESC) as posicao_geral
         FROM user_service.funcionarios f
-        LEFT JOIN gamification_service.ranking_mensal rm ON f.id = rm.funcionario_id 
-          AND rm.departamento_id = $2 
-          AND rm.mes_ano = DATE_TRUNC('month', CURRENT_DATE)
-        WHERE f.id = $1
       `, [userData.id, userData.departamento_id]);
 
       return {
@@ -160,11 +154,10 @@ async function getEmployeeDashboard(userData: { id: string; xp_total?: number; d
     const xpAtual = userData.xp_total || 0;
     const nivel = Math.floor(xpAtual / 1000) + 1;
     const xpProximoNivel = nivel * 1000;
-    const progressoNivel = ((xpAtual % 1000) / 1000) * 100;
 
     // Separar cursos por status
     const cursosEmAndamento = dashboardData.inscricoes.filter((i: { status: string }) => 
-      ['EM_ANDAMENTO', 'INICIADO'].includes(i.status)
+      ['EM_ANDAMENTO'].includes(i.status)
     );
     const cursosConcluidos = dashboardData.inscricoes.filter((i: { status: string }) => 
       i.status === 'CONCLUIDO'
@@ -176,17 +169,13 @@ async function getEmployeeDashboard(userData: { id: string; xp_total?: number; d
         xp_atual: xpAtual,
         nivel_atual: nivel,
         xp_proximo_nivel: xpProximoNivel,
-        progresso_nivel: Math.round(progressoNivel),
         badges_conquistados: dashboardData.badges
       },
       cursos: {
         em_andamento: cursosEmAndamento,
         concluidos: cursosConcluidos,
-        todas_inscricoes: dashboardData.inscricoes
       },
       ranking: {
-        posicao_departamento: dashboardData.ranking.posicao_departamento || null,
-        total_departamento: dashboardData.ranking.total_departamento || null,
         posicao_geral: dashboardData.ranking.posicao_geral || null
       }
     };
@@ -198,17 +187,13 @@ async function getEmployeeDashboard(userData: { id: string; xp_total?: number; d
         xp_atual: userData.xp_total || 0,
         nivel_atual: 1,
         xp_proximo_nivel: 1000,
-        progresso_nivel: 0,
         badges_conquistados: []
       },
       cursos: {
         em_andamento: [],
         concluidos: [],
-        todas_inscricoes: []
       },
       ranking: {
-        posicao_departamento: null,
-        total_departamento: null,
         posicao_geral: null
       }
     };
