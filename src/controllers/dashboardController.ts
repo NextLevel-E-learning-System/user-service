@@ -68,9 +68,6 @@ export const getDashboard = async (req: Request, res: Response) => {
         // GERENTE usa o mesmo dashboard que ADMIN, mas filtrado por departamento
         dashboardData = await getGerenteDashboard(userData);
         break;
-      default: // ALUNO ou qualquer outra role
-        dashboardData = await getEmployeeDashboard(userData);
-        break;
     }
 
     res.json({
@@ -93,112 +90,6 @@ export const getDashboard = async (req: Request, res: Response) => {
     res.status(500).json({ erro: 'internal_server_error', mensagem: 'Erro interno ao gerar dashboard' });
   }
 };
-
-// Dashboard do Funcionário/Aluno
-async function getEmployeeDashboard(userData: { id: string; xp_total?: number; departamento_id?: string }) {
-  try {
-    const dashboardData = await withClient(async (c) => {
-      // 1. Buscar inscrições do usuário
-      const inscricoesResult = await c.query(`
-        SELECT 
-          i.id,
-          i.curso_id,
-          c.titulo as curso_titulo,
-          c.descricao as curso_descricao,
-          c.xp_oferecido,
-          i.status,
-          i.progresso_percentual,
-          i.data_inscricao,
-          i.data_inicio,
-          i.data_conclusao,
-          cat.nome as categoria_nome,
-          inst.nome as instrutor_nome
-        FROM progress_service.inscricoes i
-        JOIN course_service.cursos c ON i.curso_id = c.codigo
-        LEFT JOIN course_service.categorias cat ON c.categoria_id = cat.codigo
-        LEFT JOIN user_service.funcionarios inst ON c.instrutor_id = inst.id
-        WHERE i.funcionario_id = $1
-        ORDER BY i.data_inscricao DESC
-      `, [userData.id]);
-
-       // 2. Buscar badges conquistados
-      const badgesResult = await c.query(`
-        SELECT 
-          b.codigo,
-          b.nome,
-          b.descricao,
-          b.icone_url,
-          fb.data_conquista
-        FROM gamification_service.funcionario_badges fb
-        JOIN gamification_service.badges b ON fb.badge_id = b.codigo
-        WHERE fb.funcionario_id = $1
-        ORDER BY fb.data_conquista DESC
-      `, [userData.id]);
-
-      // 3. Buscar ranking
-      const rankingResult = await c.query(`
-        SELECT 
-          (SELECT COUNT(*) FROM gamification_service.ranking_mensal WHERE mes_ano = DATE_TRUNC('month', CURRENT_DATE)) as total_geral,
-          ROW_NUMBER() OVER (ORDER BY f.xp_total DESC) as posicao_geral
-        FROM user_service.funcionarios f
-      `, [userData.id, userData.departamento_id]);
-
-      return {
-        inscricoes: inscricoesResult.rows,
-        badges: badgesResult.rows,
-        ranking: rankingResult.rows[0] || {}
-      };
-    });
-
-    // Calcular progressão de nível
-    const xpAtual = userData.xp_total || 0;
-    const nivel = Math.floor(xpAtual / 1000) + 1;
-    const xpProximoNivel = nivel * 1000;
-
-    // Separar cursos por status
-    const cursosEmAndamento = dashboardData.inscricoes.filter((i: { status: string }) => 
-      ['EM_ANDAMENTO'].includes(i.status)
-    );
-    const cursosConcluidos = dashboardData.inscricoes.filter((i: { status: string }) => 
-      i.status === 'CONCLUIDO'
-    );
-
-    return {
-      tipo_dashboard: 'aluno',
-      progressao: {
-        xp_atual: xpAtual,
-        nivel_atual: nivel,
-        xp_proximo_nivel: xpProximoNivel,
-        badges_conquistados: dashboardData.badges
-      },
-      cursos: {
-        em_andamento: cursosEmAndamento,
-        concluidos: cursosConcluidos,
-      },
-      ranking: {
-        posicao_geral: dashboardData.ranking.posicao_geral || null
-      }
-    };
-  } catch (error) {
-    console.error('[dashboard] Error getting employee dashboard:', error);
-    return {
-      tipo_dashboard: 'aluno',
-      progressao: {
-        xp_atual: userData.xp_total || 0,
-        nivel_atual: 1,
-        xp_proximo_nivel: 1000,
-        badges_conquistados: []
-      },
-      cursos: {
-        em_andamento: [],
-        concluidos: [],
-      },
-      ranking: {
-        posicao_geral: null
-      }
-    };
-  }
-}
 
 // Dashboard do Instrutor
 async function getInstructorDashboard(userData: { id: string }) {
