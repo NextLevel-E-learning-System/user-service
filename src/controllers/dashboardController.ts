@@ -116,7 +116,7 @@ async function getInstructorDashboard(userData: { id: string }) {
         FROM course_service.cursos c
         LEFT JOIN progress_service.inscricoes i ON c.codigo = i.curso_id
         LEFT JOIN assessment_service.avaliacoes a ON c.codigo = a.curso_id
-        LEFT JOIN assessment_service.tentativas t ON a.codigo = t.avaliacao_id AND t.funcionario_id = i.funcionario_id AND t.status = 'FINALIZADA'
+        LEFT JOIN assessment_service.tentativas t ON a.codigo = t.avaliacao_id AND t.funcionario_id = i.funcionario_id AND t.status = 'APROVADO'
         WHERE c.instrutor_id = $1
         GROUP BY c.codigo, c.titulo, c.ativo
         ORDER BY c.criado_em DESC
@@ -154,7 +154,7 @@ async function getInstructorDashboard(userData: { id: string }) {
         FROM course_service.cursos c
         LEFT JOIN progress_service.inscricoes i ON c.codigo = i.curso_id
         LEFT JOIN assessment_service.avaliacoes a ON c.codigo = a.curso_id
-        LEFT JOIN assessment_service.tentativas t ON a.codigo = t.avaliacao_id AND t.funcionario_id = i.funcionario_id AND t.status = 'FINALIZADA'
+        LEFT JOIN assessment_service.tentativas t ON a.codigo = t.avaliacao_id AND t.funcionario_id = i.funcionario_id AND t.status = 'APROVADO'
         LEFT JOIN (
           SELECT 
             curso_id,
@@ -240,7 +240,7 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
         FROM progress_service.inscricoes i
         JOIN course_service.cursos c ON i.curso_id = c.codigo
         LEFT JOIN assessment_service.avaliacoes a ON c.codigo = a.curso_id
-        LEFT JOIN assessment_service.tentativas t ON a.codigo = t.avaliacao_id AND t.funcionario_id = i.funcionario_id AND t.status = 'FINALIZADA'
+        LEFT JOIN assessment_service.tentativas t ON a.codigo = t.avaliacao_id AND t.funcionario_id = i.funcionario_id AND t.status = 'APROVADO'
         JOIN user_service.funcionarios f ON i.funcionario_id = f.id
         WHERE f.departamento_id = $1
       `, [userData.departamento_id]);
