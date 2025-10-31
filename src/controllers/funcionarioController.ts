@@ -80,6 +80,25 @@ export const listFuncionarios = async (_req: Request, res: Response) => {
   });
 };
 
+export const getFuncionario = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  
+  await withClient(async (c) => {
+    const { rows } = await c.query(
+      `SELECT id, nome, email, cpf, departamento_id, cargo_nome, xp_total, nivel, role, ativo, criado_em, atualizado_em 
+       FROM user_service.funcionarios 
+       WHERE id = $1 AND ativo = true`,
+      [id]
+    );
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ erro: 'funcionario_nao_encontrado', mensagem: 'Funcionário não encontrado' });
+    }
+    
+    res.json({ funcionario: rows[0], mensagem: 'Funcionário obtido com sucesso' });
+  });
+};
+
 export const updateFuncionarioRole = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { role } = req.body;
