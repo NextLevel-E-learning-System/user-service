@@ -96,7 +96,7 @@ async function getInstructorDashboard(userData: { id: string }) {
   try {
     // Buscar dados diretamente das tabelas relacionadas ao instrutor
     const dashboardData = await withClient(async (c) => {
-      // 1. Buscar cursos do instrutor
+      // 1. Buscar cursos do instrutor com pendentes por curso
       const cursosResult = await c.query(`
         SELECT 
           c.codigo,
@@ -112,11 +112,13 @@ async function getInstructorDashboard(userData: { id: string }) {
             ), 
             0
           ) as taxa_conclusao,
-          AVG(t.nota_obtida) as avaliacao_media
+          AVG(t.nota_obtida) as avaliacao_media,
+          COUNT(DISTINCT CASE WHEN tent.status = 'AGUARDANDO_CORRECAO' THEN tent.id END) as pendentes_correcao
         FROM course_service.cursos c
         LEFT JOIN progress_service.inscricoes i ON c.codigo = i.curso_id
         LEFT JOIN assessment_service.avaliacoes a ON c.codigo = a.curso_id
         LEFT JOIN assessment_service.tentativas t ON a.codigo = t.avaliacao_id AND t.funcionario_id = i.funcionario_id AND t.status = 'APROVADO'
+        LEFT JOIN assessment_service.tentativas tent ON a.codigo = tent.avaliacao_id
         WHERE c.instrutor_id = $1
         GROUP BY c.codigo, c.titulo, c.ativo
         ORDER BY c.criado_em DESC
@@ -191,7 +193,8 @@ async function getInstructorDashboard(userData: { id: string }) {
         total_conclusoes: string; 
         taxa_conclusao: string; 
         avaliacao_media: number; 
-        ativo: boolean 
+        ativo: boolean;
+        pendentes_correcao: string;
       }) => ({
         codigo: curso.codigo,
         titulo: curso.titulo,
@@ -199,7 +202,8 @@ async function getInstructorDashboard(userData: { id: string }) {
         concluidos: parseInt(curso.total_conclusoes || '0'),
         taxa_conclusao: parseFloat(curso.taxa_conclusao || '0'),
         avaliacao_media: curso.avaliacao_media ? parseFloat(curso.avaliacao_media.toString()) : null,
-        status: curso.ativo ? 'Ativo' : 'Inativo'
+        status: curso.ativo ? 'Ativo' : 'Inativo',
+        pendentes_correcao: parseInt(curso.pendentes_correcao || '0')
       }))
     };
   } catch (error) {
