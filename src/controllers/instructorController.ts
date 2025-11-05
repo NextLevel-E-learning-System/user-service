@@ -253,22 +253,44 @@ export const deleteInstructor = async (req: Request, res: Response) => {
   
   try {
     await withClient(async (c) => {
-      const { rows } = await c.query(`
-        DELETE FROM user_service.instrutores 
-        WHERE funcionario_id = $1 
-        RETURNING *
-      `, [id]);
+      // Iniciar transação
+      await c.query('BEGIN');
 
-      if (rows.length === 0) {
-        return res.status(404).json({ 
-          erro: 'instrutor_nao_encontrado', 
-          mensagem: 'Instrutor não encontrado' 
+      try {
+        // Deletar da tabela instrutores
+        const { rows } = await c.query(`
+          DELETE FROM user_service.instrutores 
+          WHERE funcionario_id = $1 
+          RETURNING *
+        `, [id]);
+
+        if (rows.length === 0) {
+          await c.query('ROLLBACK');
+          return res.status(404).json({ 
+            erro: 'instrutor_nao_encontrado', 
+            mensagem: 'Instrutor não encontrado' 
+          });
+        }
+
+        // Atualizar role do funcionário para ALUNO
+        await c.query(`
+          UPDATE user_service.funcionarios 
+          SET 
+            role = 'ALUNO',
+            atualizado_em = NOW()
+          WHERE id = $1
+        `, [id]);
+
+        // Commit da transação
+        await c.query('COMMIT');
+
+        res.json({ 
+          mensagem: 'Instrutor removido com sucesso e role alterada para ALUNO' 
         });
+      } catch (txError) {
+        await c.query('ROLLBACK');
+        throw txError;
       }
-
-      res.json({ 
-        mensagem: 'Instrutor removido com sucesso' 
-      });
     });
   } catch (error) {
     console.error('Erro ao deletar instrutor:', error);

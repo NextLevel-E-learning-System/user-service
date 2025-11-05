@@ -105,25 +105,70 @@ export const updateFuncionarioRole = async (req: Request, res: Response) => {
   const actor_id = (req as Request & { userId: string }).userId;
 
   await withClient(async (c) => {
-    // Atualizar role diretamente na tabela funcionarios
-    const { rows } = await c.query(`
-      UPDATE user_service.funcionarios 
-      SET role = $1, atualizado_em = NOW() 
-      WHERE id = $2 AND ativo = true 
-      RETURNING *
-    `, [role, id]);
+    // Iniciar transação
+    await c.query('BEGIN');
 
-    if (rows.length === 0) {
-      return res.status(404).json({ erro: 'funcionario_nao_encontrado', mensagem: 'Funcionário não encontrado' });
+    try {
+      // Buscar role atual antes de atualizar
+      const { rows: currentRows } = await c.query(`
+        SELECT role FROM user_service.funcionarios 
+        WHERE id = $1 AND ativo = true
+      `, [id]);
+
+      if (currentRows.length === 0) {
+        await c.query('ROLLBACK');
+        return res.status(404).json({ 
+          erro: 'funcionario_nao_encontrado', 
+          mensagem: 'Funcionário não encontrado' 
+        });
+      }
+
+      const oldRole = currentRows[0].role;
+
+      // Atualizar role na tabela funcionarios
+      const { rows } = await c.query(`
+        UPDATE user_service.funcionarios 
+        SET role = $1, atualizado_em = NOW() 
+        WHERE id = $2 AND ativo = true 
+        RETURNING *
+      `, [role, id]);
+
+      // Gerenciar tabela instrutores baseado na mudança de role
+      if (role === 'INSTRUTOR' && oldRole !== 'INSTRUTOR') {
+        // Adicionar à tabela instrutores se a nova role é INSTRUTOR
+        await c.query(`
+          INSERT INTO user_service.instrutores (funcionario_id)
+          VALUES ($1)
+          ON CONFLICT (funcionario_id) DO NOTHING
+        `, [id]);
+      } else if (role !== 'INSTRUTOR' && oldRole === 'INSTRUTOR') {
+        // Remover da tabela instrutores se a role deixou de ser INSTRUTOR
+        await c.query(`
+          DELETE FROM user_service.instrutores 
+          WHERE funcionario_id = $1
+        `, [id]);
+      }
+
+      // Commit da transação
+      await c.query('COMMIT');
+
+      await emitUserRoleChanged(id, role);
+
+      res.json({ 
+        funcionario: rows[0], 
+        granted_by: actor_id,
+        mensagem: `Role atualizada para ${role}${
+          role === 'INSTRUTOR' && oldRole !== 'INSTRUTOR' 
+            ? ' e adicionado à tabela de instrutores' 
+            : role !== 'INSTRUTOR' && oldRole === 'INSTRUTOR'
+            ? ' e removido da tabela de instrutores'
+            : ''
+        }`
+      });
+    } catch (txError) {
+      await c.query('ROLLBACK');
+      throw txError;
     }
-
-    await emitUserRoleChanged(id, role);
-
-    res.json({ 
-      funcionario: rows[0], 
-      granted_by: actor_id,
-      mensagem: `Role atualizada para ${role}`
-    });
   });
 };export const requestPasswordReset = async (req: Request, res: Response) => {
   const { email } = req.body;
