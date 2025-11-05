@@ -31,7 +31,6 @@ export const listInstructors = async (_req: Request, res: Response) => {
           f.cargo_nome,
           i.biografia,
           i.especialidades,
-          i.avaliacao_media,
           f.ativo,
           i.criado_em,
           i.atualizado_em
@@ -53,7 +52,6 @@ export const listInstructors = async (_req: Request, res: Response) => {
         cargo_nome: row.cargo_nome,
         biografia: row.biografia,
         especialidades: row.especialidades,
-        avaliacao_media: row.avaliacao_media,
         ativo: row.ativo,
         criado_em: row.criado_em,
         atualizado_em: row.atualizado_em
@@ -91,7 +89,6 @@ export const getInstructor = async (req: Request, res: Response) => {
           f.cargo_nome,
           i.biografia,
           i.especialidades,
-          i.avaliacao_media,
           f.ativo,
           i.criado_em,
           i.atualizado_em
@@ -119,7 +116,6 @@ export const getInstructor = async (req: Request, res: Response) => {
         cargo_nome: rows[0].cargo_nome,
         biografia: rows[0].biografia,
         especialidades: rows[0].especialidades,
-        avaliacao_media: rows[0].avaliacao_media,
         ativo: rows[0].ativo,
         criado_em: rows[0].criado_em,
         atualizado_em: rows[0].atualizado_em
