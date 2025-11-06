@@ -202,7 +202,7 @@ async function getInstructorDashboard(userData: { id: string }) {
         concluidos: parseInt(curso.total_conclusoes || '0'),
         taxa_conclusao: parseFloat(curso.taxa_conclusao || '0'),
         avaliacao_media: curso.avaliacao_media ? parseFloat(curso.avaliacao_media.toString()) : null,
-        status: curso.ativo ? 'Ativo' : 'Inativo',
+        status: curso.ativo ? true : false,
         pendentes_correcao: parseInt(curso.pendentes_correcao || '0')
       }))
     };
@@ -296,16 +296,14 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
     const { departmentStats, departmentUsers, departmentCourses, departmentEngagement } = dashboardData;
 
     return {
-      tipo_dashboard: 'administrador', // Mesmo tipo que ADMIN para compatibilidade
+      tipo_dashboard: 'gerente', // Mesmo tipo que ADMIN para compatibilidade
       metricas_gerais: {
         total_funcionarios: parseInt(departmentUsers?.total_funcionarios || '0'),
         funcionarios_ativos: parseInt(departmentUsers?.funcionarios_ativos || '0'),
-        alunos_ativos: parseInt(departmentUsers?.alunos_ativos || '0'),
         total_instrutores: parseInt(departmentUsers?.total_instrutores || '0'),
         total_cursos: parseInt(departmentCourses?.total_cursos || '0'),
         taxa_conclusao_geral: parseFloat(departmentStats?.taxa_conclusao || '0'),
         inscricoes_30d: parseInt(departmentStats?.inscricoes_30d || '0'),
-        avaliacao_media_plataforma: parseFloat(departmentStats?.avaliacao_media || '0')
       },
       engajamento_departamentos: departmentEngagement.map((dept: { 
         codigo: string;
@@ -320,12 +318,6 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
         xp_medio: Math.round(dept.xp_medio || 0),
         funcionarios_ativos: parseInt(dept.funcionarios_ativos)
       })),
-      cursos_populares: [],
-      // Adicionar flag para indicar que é um gerente
-      _departamento_restrito: {
-        departamento_id: userData.departamento_id,
-        departamento_nome: userData.departamento_nome
-      }
     };
   } catch (error) {
     console.error('[dashboard] Error getting gerente dashboard:', error);
@@ -334,12 +326,10 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
       metricas_gerais: {
         total_funcionarios: 0,
         funcionarios_ativos: 0,
-        alunos_ativos: 0,
         total_cursos: 0,
         taxa_conclusao_geral: 0
       },
       engajamento_departamentos: [],
-      cursos_populares: []
     };
   }
 }
@@ -435,11 +425,10 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
     const { usersStats, coursesStats, progressStats, departmentEngagement, cursosPopulares } = dashboardData;
 
     return {
-      tipo_dashboard: 'administrador',
+      tipo_dashboard: 'gerente',
       metricas_gerais: {
         total_funcionarios: parseInt(usersStats?.total_funcionarios || '0'),
         funcionarios_ativos: parseInt(usersStats?.funcionarios_ativos || '0'),
-        alunos_ativos: parseInt(usersStats?.alunos_ativos || '0'),
         total_instrutores: parseInt(usersStats?.total_instrutores || '0'),
         total_cursos: parseInt(coursesStats?.total_cursos || '0'),
         taxa_conclusao_media: parseFloat(progressStats?.taxa_conclusao_media || '0'),

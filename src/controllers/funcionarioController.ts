@@ -75,7 +75,7 @@ export const registerFuncionario = async (req: Request, res: Response) => {
 
 export const listFuncionarios = async (_req: Request, res: Response) => {
   await withClient(async (c) => {
-    const { rows } = await c.query(`SELECT * FROM user_service.funcionarios WHERE ativo=true`);
+    const { rows } = await c.query(`SELECT * FROM user_service.funcionarios`);
     res.json({ items: rows, mensagem: 'Funcionários listados com sucesso' });
   });
 };
@@ -87,7 +87,7 @@ export const getFuncionario = async (req: Request, res: Response) => {
     const { rows } = await c.query(
       `SELECT id, nome, email, cpf, departamento_id, cargo_nome, xp_total, nivel, role, ativo, criado_em, atualizado_em 
        FROM user_service.funcionarios 
-       WHERE id = $1 AND ativo = true`,
+       WHERE id = $1`,
       [id]
     );
     
@@ -112,7 +112,7 @@ export const updateFuncionarioRole = async (req: Request, res: Response) => {
       // Buscar role atual antes de atualizar
       const { rows: currentRows } = await c.query(`
         SELECT role FROM user_service.funcionarios 
-        WHERE id = $1 AND ativo = true
+        WHERE id = $1
       `, [id]);
 
       if (currentRows.length === 0) {
@@ -129,7 +129,7 @@ export const updateFuncionarioRole = async (req: Request, res: Response) => {
       const { rows } = await c.query(`
         UPDATE user_service.funcionarios 
         SET role = $1, atualizado_em = NOW() 
-        WHERE id = $2 AND ativo = true 
+        WHERE id = $2
         RETURNING *
       `, [role, id]);
 
