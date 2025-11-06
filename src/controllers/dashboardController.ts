@@ -322,7 +322,7 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
   } catch (error) {
     console.error('[dashboard] Error getting gerente dashboard:', error);
     return {
-      tipo_dashboard: 'administrador',
+      tipo_dashboard: 'gerente',
       metricas_gerais: {
         total_funcionarios: 0,
         funcionarios_ativos: 0,
@@ -425,7 +425,7 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
     const { usersStats, coursesStats, progressStats, departmentEngagement, cursosPopulares } = dashboardData;
 
     return {
-      tipo_dashboard: 'gerente',
+      tipo_dashboard: 'administrador',
       metricas_gerais: {
         total_funcionarios: parseInt(usersStats?.total_funcionarios || '0'),
         funcionarios_ativos: parseInt(usersStats?.funcionarios_ativos || '0'),
