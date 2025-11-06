@@ -170,7 +170,132 @@ export const updateFuncionarioRole = async (req: Request, res: Response) => {
       throw txError;
     }
   });
-};export const requestPasswordReset = async (req: Request, res: Response) => {
+};
+
+export const updateFuncionario = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { nome, email, departamento_id, cargo_nome, role, ativo } = req.body;
+  const actor_id = (req as Request & { userId: string }).userId;
+
+  try {
+    await withClient(async (c) => {
+      // Iniciar transação
+      await c.query('BEGIN');
+
+      try {
+        // Buscar funcionário atual
+        const { rows: currentRows } = await c.query(`
+          SELECT * FROM user_service.funcionarios 
+          WHERE id = $1
+        `, [id]);
+
+        if (currentRows.length === 0) {
+          await c.query('ROLLBACK');
+          return res.status(404).json({ 
+            erro: 'funcionario_nao_encontrado', 
+            mensagem: 'Funcionário não encontrado' 
+          });
+        }
+
+        const currentFunc = currentRows[0];
+        const oldRole = currentFunc.role;
+        const oldAtivo = currentFunc.ativo;
+
+        // Construir query de atualização dinamicamente
+        const updates: string[] = [];
+        const values: any[] = [];
+        let paramIndex = 1;
+
+        if (nome !== undefined) {
+          updates.push(`nome = $${paramIndex++}`);
+          values.push(nome);
+        }
+        if (email !== undefined) {
+          updates.push(`email = $${paramIndex++}`);
+          values.push(email);
+        }
+        if (departamento_id !== undefined) {
+          updates.push(`departamento_id = $${paramIndex++}`);
+          values.push(departamento_id);
+        }
+        if (cargo_nome !== undefined) {
+          updates.push(`cargo_nome = $${paramIndex++}`);
+          values.push(cargo_nome);
+        }
+        if (role !== undefined) {
+          updates.push(`role = $${paramIndex++}`);
+          values.push(role);
+        }
+        if (ativo !== undefined) {
+          updates.push(`ativo = $${paramIndex++}`);
+          values.push(ativo);
+          
+          // Se está desativando, adicionar timestamp
+          if (!ativo && oldAtivo) {
+            updates.push(`inactivated_at = NOW()`);
+          } else if (ativo && !oldAtivo) {
+            updates.push(`inactivated_at = NULL`);
+          }
+        }
+
+        // Adicionar atualizado_em
+        updates.push(`atualizado_em = NOW()`);
+        values.push(id);
+
+        // Executar UPDATE
+        const { rows } = await c.query(`
+          UPDATE user_service.funcionarios 
+          SET ${updates.join(', ')}
+          WHERE id = $${paramIndex}
+          RETURNING *
+        `, values);
+
+        const updatedFunc = rows[0];
+
+        // Gerenciar tabela instrutores se role mudou
+        if (role !== undefined && role !== oldRole) {
+          if (role === 'INSTRUTOR' && oldRole !== 'INSTRUTOR') {
+            // Adicionar à tabela instrutores
+            await c.query(`
+              INSERT INTO user_service.instrutores (funcionario_id)
+              VALUES ($1)
+              ON CONFLICT (funcionario_id) DO NOTHING
+            `, [id]);
+          } else if (role !== 'INSTRUTOR' && oldRole === 'INSTRUTOR') {
+            // Remover da tabela instrutores
+            await c.query(`
+              DELETE FROM user_service.instrutores 
+              WHERE funcionario_id = $1
+            `, [id]);
+          }
+
+          // Emitir evento de mudança de role
+          await emitUserRoleChanged(id, role);
+        }
+
+        // Commit da transação
+        await c.query('COMMIT');
+
+        res.json({ 
+          funcionario: updatedFunc,
+          updated_by: actor_id,
+          mensagem: 'Funcionário atualizado com sucesso'
+        });
+      } catch (txError) {
+        await c.query('ROLLBACK');
+        throw txError;
+      }
+    });
+  } catch (error: any) {
+    console.error('Erro ao atualizar funcionário:', error);
+    res.status(500).json({ 
+      erro: 'erro_interno', 
+      mensagem: error.message || 'Erro ao atualizar funcionário' 
+    });
+  }
+};
+
+export const requestPasswordReset = async (req: Request, res: Response) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ erro: 'email_obrigatorio', mensagem: 'Email é obrigatório' });
 

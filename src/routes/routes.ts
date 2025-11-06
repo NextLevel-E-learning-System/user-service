@@ -27,6 +27,7 @@ export const funcionarioRouter = Router();
 funcionarioRouter.get("/", funcCtrl.listFuncionarios);
 funcionarioRouter.get("/dashboard", dashboardCtrl.getDashboard);
 funcionarioRouter.get("/:id", funcCtrl.getFuncionario);  // Buscar funcionário por ID
+funcionarioRouter.put("/:id", funcCtrl.updateFuncionario);  // Atualizar funcionário completo
 funcionarioRouter.put("/:id/role", funcCtrl.updateFuncionarioRole);
 
 export const instructorRouter = Router();
