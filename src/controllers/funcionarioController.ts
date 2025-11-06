@@ -73,9 +73,9 @@ export const registerFuncionario = async (req: Request, res: Response) => {
 
         // 4. Criar usuário no auth_service.usuarios com o funcionario_id
         await c.query(`
-          INSERT INTO auth_service.usuarios (funcionario_id, email, senha_hash, ativo)
-          VALUES ($1, $2, $3, true)
-        `, [funcionario.id, funcionario.email, senhaHash, true]);
+          INSERT INTO auth_service.usuarios (funcionario_id, email, senha_hash)
+          VALUES ($1, $2, $3)
+        `, [funcionario.id, funcionario.email, senhaHash]);
 
         // Commit da transação
         await c.query('COMMIT');
