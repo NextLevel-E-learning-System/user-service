@@ -12,9 +12,20 @@ export const registerFuncionario = async (req: Request, res: Response) => {
     const { nome, email, cpf, departamento_id, cargo_nome, role = 'FUNCIONARIO', ativo = true } = req.body;
     
     // Validação básica
-    if (!nome || !email || !cpf || !role || !ativo) {
-      return res.status(400).json({ erro: 'dados_invalidos', mensagem: 'Nome, email, CPF, cargo e status são obrigatórios' });
+    if (!nome || !email || !cpf) {
+      return res.status(400).json({ erro: 'dados_invalidos', mensagem: 'Nome, email e CPF são obrigatórios' });
     }
+
+    // Validar CPF: apenas números e exatamente 11 dígitos
+    const cpfLimpo = cpf.replace(/\D/g, ''); // Remove caracteres não numéricos
+    if (cpfLimpo.length !== 11) {
+      return res.status(400).json({ 
+        erro: 'cpf_invalido', 
+        mensagem: 'CPF deve conter exatamente 11 dígitos numéricos' 
+      });
+    }
+    // Garantir que o CPF seja armazenado com zeros à esquerda
+    const cpfFormatado = cpfLimpo.padStart(11, '0');
 
     // Validar domínio de email
     const allowedDomains = (process.env.ALLOWED_EMAIL_DOMAINS || 'gmail.com').split(',');
@@ -44,14 +55,12 @@ export const registerFuncionario = async (req: Request, res: Response) => {
 
       try {
         // 1. Verificar se CPF já existe
-        if (cpf) {
-          const { rows: existingCpf } = await c.query(
-            `SELECT id FROM user_service.funcionarios WHERE cpf = $1`,
-            [cpf]
-          );
-          if (existingCpf.length > 0) {
-            throw new Error('cpf_ja_cadastrado');
-          }
+        const { rows: existingCpf } = await c.query(
+          `SELECT id FROM user_service.funcionarios WHERE cpf = $1`,
+          [cpfFormatado]
+        );
+        if (existingCpf.length > 0) {
+          throw new Error('cpf_ja_cadastrado');
         }
 
         // 2. Verificar se email já existe no auth_service
@@ -68,7 +77,7 @@ export const registerFuncionario = async (req: Request, res: Response) => {
           INSERT INTO user_service.funcionarios
           (nome, email, cpf, departamento_id, cargo_nome, role, ativo, xp_total, nivel)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
-        `, [nome, email, cpf, departamento_id, cargo_nome, role, true, 0, 'Iniciante']);
+        `, [nome, email, cpfFormatado, departamento_id, cargo_nome, role, true, 0, 'Iniciante']);
         const funcionario = funcionarioRows[0];
 
         // 4. Criar usuário no auth_service.usuarios com o funcionario_id
