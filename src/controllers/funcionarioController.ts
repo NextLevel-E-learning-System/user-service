@@ -10,7 +10,7 @@ export async function hashPassword(pwd: string) {
 
 export const registerFuncionario = async (req: Request, res: Response) => {
   try {
-    const { nome, email, cpf, departamento_id, cargo_nome, role = 'ALUNO' } = req.body;
+    const { nome, email, cpf, departamento_id, cargo_nome, role = 'FUNCIONARIO' } = req.body;
     
     // Validação básica
     if (!nome || !email) {
@@ -18,9 +18,9 @@ export const registerFuncionario = async (req: Request, res: Response) => {
     }
 
     // Validar role
-    const validRoles = ['ADMIN', 'INSTRUTOR', 'GERENTE', 'ALUNO'];
+    const validRoles = ['ADMIN', 'INSTRUTOR', 'GERENTE', 'FUNCIONARIO'];
     if (!validRoles.includes(role)) {
-      return res.status(400).json({ erro: 'role_invalida', mensagem: 'Role inválida. Use: ADMIN, INSTRUTOR, GERENTE ou ALUNO' });
+      return res.status(400).json({ erro: 'role_invalida', mensagem: 'Role inválida. Use: ADMIN, INSTRUTOR, GERENTE ou FUNCIONARIO' });
     }
 
     // IMPORTANTE: Validar CPF ANTES de criar usuário no auth-service

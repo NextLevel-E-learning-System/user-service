@@ -272,11 +272,11 @@ export const deleteInstructor = async (req: Request, res: Response) => {
           });
         }
 
-        // Atualizar role do funcionário para ALUNO
+        // Atualizar role do funcionário para FUNCIONARIO
         await c.query(`
           UPDATE user_service.funcionarios 
           SET 
-            role = 'ALUNO',
+            role = 'FUNCIONARIO',
             atualizado_em = NOW()
           WHERE id = $1
         `, [id]);
@@ -285,7 +285,7 @@ export const deleteInstructor = async (req: Request, res: Response) => {
         await c.query('COMMIT');
 
         res.json({ 
-          mensagem: 'Instrutor removido com sucesso e role alterada para ALUNO' 
+          mensagem: 'Instrutor removido com sucesso e role alterada para FUNCIONARIO' 
         });
       } catch (txError) {
         await c.query('ROLLBACK');

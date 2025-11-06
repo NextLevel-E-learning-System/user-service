@@ -8,7 +8,7 @@ import * as instructorCtrl from "../controllers/instructorController.js";
 export const publicRouter = Router();
 publicRouter.get("/departamentos", deptCtrl.listDepartamentos);
 publicRouter.get("/cargos", cargoCtrl.listCargos);
-publicRouter.post("/register", funcCtrl.registerFuncionario); // auto-cadastro ALUNO
+publicRouter.post("/register", funcCtrl.registerFuncionario); // auto-cadastro FUNCIONARIO
 publicRouter.post("/reset-password", funcCtrl.requestPasswordReset);
 
 export const departamentoRouter = Router();

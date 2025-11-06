@@ -53,7 +53,7 @@ export const getDashboard = async (req: Request, res: Response) => {
     }
 
     // Determinar role principal (direto do campo role)
-    const mainRole = userData.role || 'ALUNO';
+    const mainRole = userData.role || 'FUNCIONARIO';
 
     // Gerar dashboard baseado na role
     let dashboardData;
@@ -79,7 +79,7 @@ export const getDashboard = async (req: Request, res: Response) => {
         cargo: userData.cargo_nome,
         nivel: userData.nivel,
         xp_total: userData.xp_total,
-        roles: [userData.role || 'ALUNO']
+        roles: [userData.role || 'FUNCIONARIO']
       },
       dashboard: dashboardData,
       mensagem: 'Dashboard carregado com sucesso'
@@ -254,7 +254,7 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
         SELECT 
           COUNT(*) as total_funcionarios,
           COUNT(CASE WHEN f.ativo = true THEN 1 END) as funcionarios_ativos,
-          COUNT(CASE WHEN f.ativo = true AND f.role = 'ALUNO' THEN 1 END) as alunos_ativos,
+          COUNT(CASE WHEN f.ativo = true AND f.role = 'FUNCIONARIO' THEN 1 END) as alunos_ativos,
           COUNT(CASE WHEN f.role = 'INSTRUTOR' THEN 1 END) as total_instrutores
         FROM user_service.funcionarios f
         JOIN auth_service.usuarios u ON f.id = u.funcionario_id
@@ -278,7 +278,7 @@ async function getGerenteDashboard(userData: { departamento_id?: string; departa
           d.nome,
           COUNT(f.id) as total_funcionarios,
           COALESCE(AVG(f.xp_total), 0) as xp_medio,
-          COUNT(CASE WHEN f.ativo = true AND f.role = 'ALUNO' THEN 1 END) as funcionarios_ativos
+          COUNT(CASE WHEN f.ativo = true AND f.role = 'FUNCIONARIO' THEN 1 END) as funcionarios_ativos
         FROM user_service.departamentos d
         LEFT JOIN user_service.funcionarios f ON d.codigo = f.departamento_id
         WHERE d.codigo = $1 AND d.ativo = true
@@ -353,7 +353,7 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
         SELECT 
           COUNT(*) as total_funcionarios,
           COUNT(CASE WHEN f.ativo = true THEN 1 END) as funcionarios_ativos,
-          COUNT(CASE WHEN f.ativo = true AND f.role = 'ALUNO' THEN 1 END) as alunos_ativos,
+          COUNT(CASE WHEN f.ativo = true AND f.role = 'FUNCIONARIO' THEN 1 END) as alunos_ativos,
           COUNT(CASE WHEN f.role = 'INSTRUTOR' THEN 1 END) as total_instrutores
         FROM user_service.funcionarios f
         JOIN auth_service.usuarios u ON f.id = u.funcionario_id
@@ -391,7 +391,7 @@ async function getAdminDashboard(_userData: Record<string, unknown>) {
           d.nome,
           COUNT(f.id) as total_funcionarios,
           COALESCE(AVG(f.xp_total), 0) as xp_medio,
-          COUNT(CASE WHEN f.ativo = true AND f.role = 'ALUNO' THEN 1 END) as funcionarios_ativos
+          COUNT(CASE WHEN f.ativo = true AND f.role = 'FUNCIONARIO' THEN 1 END) as funcionarios_ativos
         FROM user_service.departamentos d
         LEFT JOIN user_service.funcionarios f ON d.codigo = f.departamento_id
         WHERE d.ativo = true
