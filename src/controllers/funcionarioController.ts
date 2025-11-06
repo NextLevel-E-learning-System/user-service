@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { resetPassword } from "../services/authService.js";
 import { withClient } from "../config/db.js";
 import bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
@@ -361,7 +360,8 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
   if (!email) return res.status(400).json({ erro: 'email_obrigatorio', mensagem: 'Email é obrigatório' });
 
   const novaSenha = Math.random().toString().slice(-6);
-  await resetPassword(email, novaSenha);
+
+  const senhaHash = await bcrypt.hash(novaSenha, 12);
 
   await withClient(async (c) => {
     const { rows } = await c.query(
@@ -371,7 +371,7 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
   if (rows.length === 0) return res.status(404).json({ erro: 'usuario_nao_encontrado', mensagem: 'Usuário não encontrado' });
     const funcionario = rows[0];
 
-    await emitUserPasswordReset(email, funcionario.id, novaSenha);
+    await emitUserPasswordReset(email, funcionario.id, senhaHash);
 
   res.json({ mensagem: 'Senha redefinida e evento enviado.' });
   });
