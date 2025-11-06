@@ -117,7 +117,10 @@ export const registerFuncionario = async (req: Request, res: Response) => {
 
 export const listFuncionarios = async (_req: Request, res: Response) => {
   await withClient(async (c) => {
-    const { rows } = await c.query(`SELECT * FROM user_service.funcionarios`);
+    const { rows } = await c.query(`
+      SELECT * FROM user_service.funcionarios 
+      ORDER BY criado_em DESC
+    `);
     res.json({ items: rows, mensagem: 'Funcionários listados com sucesso' });
   });
 };
