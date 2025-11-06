@@ -79,7 +79,7 @@ export const getDashboard = async (req: Request, res: Response) => {
         cargo: userData.cargo_nome,
         nivel: userData.nivel,
         xp_total: userData.xp_total,
-        roles: [userData.role || 'FUNCIONARIO']
+        role: userData.role
       },
       dashboard: dashboardData,
       mensagem: 'Dashboard carregado com sucesso'
