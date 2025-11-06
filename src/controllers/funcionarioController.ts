@@ -24,8 +24,6 @@ export const registerFuncionario = async (req: Request, res: Response) => {
         mensagem: 'CPF deve conter exatamente 11 dígitos numéricos' 
       });
     }
-    // Garantir que o CPF seja armazenado com zeros à esquerda
-    const cpfFormatado = cpfLimpo.padStart(11, '0');
 
     // Validar domínio de email
     const allowedDomains = (process.env.ALLOWED_EMAIL_DOMAINS || 'gmail.com').split(',');
@@ -57,7 +55,7 @@ export const registerFuncionario = async (req: Request, res: Response) => {
         // 1. Verificar se CPF já existe
         const { rows: existingCpf } = await c.query(
           `SELECT id FROM user_service.funcionarios WHERE cpf = $1`,
-          [cpfFormatado]
+          [cpfLimpo]
         );
         if (existingCpf.length > 0) {
           throw new Error('cpf_ja_cadastrado');
@@ -77,7 +75,7 @@ export const registerFuncionario = async (req: Request, res: Response) => {
           INSERT INTO user_service.funcionarios
           (nome, email, cpf, departamento_id, cargo_nome, role, ativo, xp_total, nivel)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
-        `, [nome, email, cpfFormatado, departamento_id, cargo_nome, role, true, 0, 'Iniciante']);
+        `, [nome, email, cpfLimpo, departamento_id, cargo_nome, role, true, 0, 'Iniciante']);
         const funcionario = funcionarioRows[0];
 
         // 4. Criar usuário no auth_service.usuarios com o funcionario_id
