@@ -1,20 +1,32 @@
 import { Request, Response } from "express";
-import { createAuthUser, resetPassword } from "../services/authService.js";
+import { resetPassword } from "../services/authService.js";
 import { withClient } from "../config/db.js";
 import bcrypt from 'bcryptjs';
+import { createHash } from 'crypto';
 import { emitUserCreated, emitUserPasswordReset, emitUserRoleChanged } from "../services/events.js";
 
 export async function hashPassword(pwd: string) {
-  return bcrypt.hash(pwd, 12);
+   return createHash('sha256').update(pwd).digest('hex');
 }
-
 export const registerFuncionario = async (req: Request, res: Response) => {
   try {
-    const { nome, email, cpf, departamento_id, cargo_nome, role = 'FUNCIONARIO' } = req.body;
+    const { nome, email, cpf, departamento_id, cargo_nome, role = 'FUNCIONARIO', ativo = true } = req.body;
     
     // Validação básica
-    if (!nome || !email) {
-      return res.status(400).json({ erro: 'dados_invalidos', mensagem: 'Nome e email são obrigatórios' });
+    if (!nome || !email || !cpf || !role || !ativo) {
+      return res.status(400).json({ erro: 'dados_invalidos', mensagem: 'Nome, email, CPF, cargo e status são obrigatórios' });
+    }
+
+    // Validar domínio de email
+    const allowedDomains = (process.env.ALLOWED_EMAIL_DOMAINS || 'gmail.com').split(',');
+    const isValidDomain = allowedDomains.some(domain => 
+      email.toLowerCase().endsWith(`@${domain.trim().toLowerCase()}`)
+    );
+    if (!isValidDomain) {
+      return res.status(400).json({ 
+        erro: 'dominio_nao_permitido', 
+        mensagem: `Apenas emails dos domínios ${allowedDomains.join(', ')} são permitidos para auto-cadastro` 
+      });
     }
 
     // Validar role
@@ -23,34 +35,61 @@ export const registerFuncionario = async (req: Request, res: Response) => {
       return res.status(400).json({ erro: 'role_invalida', mensagem: 'Role inválida. Use: ADMIN, INSTRUTOR, GERENTE ou FUNCIONARIO' });
     }
 
-    // IMPORTANTE: Validar CPF ANTES de criar usuário no auth-service
-    if (cpf) {
-      await withClient(async (c) => {
-        const { rows: existingCpf } = await c.query(
-          `SELECT id FROM user_service.funcionarios WHERE cpf = $1 AND ativo = true`,
-          [cpf]
-        );
-        if (existingCpf.length > 0) {
-          throw new Error('cpf_ja_cadastrado');
-        }
-      });
-    }
-
-    // Criar usuário no auth-service (que enviará emails)
-    await createAuthUser(email);
+    // Gerar senha aleatória
+   const senhaClara = Math.random().toString().slice(-6);
+  const senhaHash = await bcrypt.hash(senhaClara, 12);
 
     await withClient(async (c) => {
-      const { rows } = await c.query(`
-        INSERT INTO user_service.funcionarios
-        (nome, email, cpf, departamento_id, cargo_nome, role)
-        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *
-      `, [nome, email, cpf, departamento_id, cargo_nome, role]);
-      const funcionario = rows[0];
+      // Usar transação para garantir atomicidade
+      await c.query('BEGIN');
 
-      // Emitir evento adicional do user-service (se necessário)
-      await emitUserCreated(funcionario.email, undefined as unknown as string, funcionario.id, funcionario.nome);
+      try {
+        // 1. Verificar se CPF já existe
+        if (cpf) {
+          const { rows: existingCpf } = await c.query(
+            `SELECT id FROM user_service.funcionarios WHERE cpf = $1`,
+            [cpf]
+          );
+          if (existingCpf.length > 0) {
+            throw new Error('cpf_ja_cadastrado');
+          }
+        }
 
-  res.status(201).json({ funcionario, mensagem: 'Funcionário criado com sucesso' });
+        // 2. Verificar se email já existe no auth_service
+        const { rows: existingEmail } = await c.query(
+          `SELECT funcionario_id FROM auth_service.usuarios WHERE email = $1`,
+          [email]
+        );
+        if (existingEmail.length > 0) {
+          throw new Error('email_ja_cadastrado');
+        }
+
+        // 3. Criar usuário no user_service.funcionarios
+        const { rows: funcionarioRows } = await c.query(`
+          INSERT INTO user_service.funcionarios
+          (nome, email, cpf, departamento_id, cargo_nome, role, ativo, xp_total, nivel)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
+        `, [nome, email, cpf, departamento_id, cargo_nome, role, true, 0, 'Iniciante']);
+        const funcionario = funcionarioRows[0];
+
+        // 4. Criar usuário no auth_service.usuarios com o funcionario_id
+        await c.query(`
+          INSERT INTO auth_service.usuarios (funcionario_id, email, senha_hash, ativo)
+          VALUES ($1, $2, $3, true)
+        `, [funcionario.id, funcionario.email, senhaHash, true]);
+
+        // Commit da transação
+        await c.query('COMMIT');
+
+        // Emitir evento com a senha (será capturado pelo notification-service)
+        await emitUserCreated(funcionario.email, senhaClara, funcionario.id, funcionario.nome);
+
+        res.status(201).json({ funcionario, mensagem: 'Funcionário criado com sucesso' });
+      } catch (error) {
+        // Rollback em caso de erro
+        await c.query('ROLLBACK');
+        throw error;
+      }
     });
   } catch (error) {
     console.error('Erro ao registrar funcionário:', error);
@@ -58,18 +97,15 @@ export const registerFuncionario = async (req: Request, res: Response) => {
     // Tratar erros específicos
     if (error instanceof Error) {
       if (error.message === 'cpf_ja_cadastrado') {
-  return res.status(409).json({ erro: 'cpf_ja_cadastrado', mensagem: 'CPF já está cadastrado no sistema' });
+        return res.status(409).json({ erro: 'cpf_ja_cadastrado', mensagem: 'CPF já está cadastrado no sistema' });
       }
       if (error.message === 'email_ja_cadastrado') {
-  return res.status(409).json({ erro: 'email_ja_cadastrado', mensagem: 'Email já está cadastrado no sistema' });
-      }
-      if (error.message === 'dominio_nao_permitido') {
-  return res.status(400).json({ erro: 'dominio_nao_permitido', mensagem: 'Domínio de email não permitido' });
+        return res.status(409).json({ erro: 'email_ja_cadastrado', mensagem: 'Email já está cadastrado no sistema' });
       }
     }
     
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-  res.status(500).json({ erro: 'erro_interno', mensagem: 'Erro interno do servidor', detalhes: errorMessage });
+    res.status(500).json({ erro: 'erro_interno', mensagem: 'Erro interno do servidor', detalhes: errorMessage });
   }
 };
 
