@@ -273,6 +273,31 @@ export const updateFuncionario = async (req: Request, res: Response) => {
           await emitUserRoleChanged(id, role);
         }
 
+        // Atualizar status no auth-service se mudou (direto no banco)
+        if (ativo !== undefined && ativo !== oldAtivo) {
+          try {
+            // Atualizar status e inactivated_at na tabela auth_service.usuarios
+            await c.query(`
+              UPDATE auth_service.usuarios 
+              SET ativo = $1, 
+                  inactivated_at = CASE WHEN $1 = false THEN NOW() ELSE NULL END
+              WHERE email = $2
+            `, [ativo, updatedFunc.email]);
+            
+            // Se desativou, invalidar todos os tokens ativos
+            if (!ativo) {
+              await c.query(`
+                UPDATE auth_service.tokens 
+                SET ativo = false 
+                WHERE funcionario_id = $1 AND ativo = true
+              `, [id]);
+            }
+          } catch (authError) {
+            console.error('Erro ao atualizar status no auth-service:', authError);
+            // Não faz rollback - funcionário foi atualizado, mas pode haver problema no auth
+          }
+        }
+
         // Commit da transação
         await c.query('COMMIT');
 
