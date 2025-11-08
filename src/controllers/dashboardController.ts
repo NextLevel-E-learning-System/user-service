@@ -91,40 +91,11 @@ export const getDashboard = async (req: Request, res: Response) => {
   }
 };
 
-// Dashboard do Instrutor
+// Dashboard do Instrutor - Apenas métricas gerais
 async function getInstructorDashboard(userData: { id: string }) {
   try {
-    // Buscar dados diretamente das tabelas relacionadas ao instrutor
     const dashboardData = await withClient(async (c) => {
-      // 1. Buscar cursos do instrutor com pendentes por curso
-      const cursosResult = await c.query(`
-        SELECT 
-          c.codigo,
-          c.titulo,
-          c.ativo,
-          COUNT(DISTINCT i.id) as total_inscricoes,
-          COUNT(DISTINCT CASE WHEN i.status = 'CONCLUIDO' THEN i.id END) as total_conclusoes,
-          COALESCE(
-            ROUND(
-              (COUNT(DISTINCT CASE WHEN i.status = 'CONCLUIDO' THEN i.id END)::numeric / 
-               NULLIF(COUNT(DISTINCT i.id), 0)) * 100, 
-              1
-            ), 
-            0
-          ) as taxa_conclusao,
-          AVG(t.nota_obtida) as avaliacao_media,
-          COUNT(DISTINCT CASE WHEN tent.status = 'AGUARDANDO_CORRECAO' THEN tent.id END) as pendentes_correcao
-        FROM course_service.cursos c
-        LEFT JOIN progress_service.inscricoes i ON c.codigo = i.curso_id
-        LEFT JOIN assessment_service.avaliacoes a ON c.codigo = a.curso_id
-        LEFT JOIN assessment_service.tentativas t ON a.codigo = t.avaliacao_id AND t.funcionario_id = i.funcionario_id AND t.status = 'APROVADO'
-        LEFT JOIN assessment_service.tentativas tent ON a.codigo = tent.avaliacao_id
-        WHERE c.instrutor_id = $1
-        GROUP BY c.codigo, c.titulo, c.ativo
-        ORDER BY c.criado_em DESC
-      `, [userData.id]);
-
-      // 2. Buscar avaliações pendentes de correção
+      // 1. Buscar avaliações pendentes de correção
       const pendentesResult = await c.query(`
         SELECT COUNT(*) as pendentes
         FROM assessment_service.tentativas t
@@ -134,7 +105,7 @@ async function getInstructorDashboard(userData: { id: string }) {
         AND t.status = 'AGUARDANDO_CORRECAO'
       `, [userData.id]);
 
-      // 3. Calcular métricas gerais
+      // 2. Calcular métricas gerais
       const metricasResult = await c.query(`
         SELECT 
           COUNT(DISTINCT c.codigo) as total_cursos,
@@ -169,13 +140,12 @@ async function getInstructorDashboard(userData: { id: string }) {
       `, [userData.id]);
 
       return {
-        cursos: cursosResult.rows,
         pendentes: pendentesResult.rows[0]?.pendentes || 0,
         metricas: metricasResult.rows[0]
       };
     });
 
-    const { cursos, pendentes, metricas } = dashboardData;
+    const { pendentes, metricas } = dashboardData;
 
     return {
       tipo_dashboard: 'instrutor',
@@ -185,26 +155,7 @@ async function getInstructorDashboard(userData: { id: string }) {
         taxa_conclusao_geral: parseFloat(metricas?.taxa_conclusao_geral || '0'),
         avaliacao_media_geral: parseFloat(metricas?.avaliacao_media_geral || '0'),
         pendentes_correcao: parseInt(pendentes.toString())
-      },
-      cursos: cursos.map((curso: { 
-        codigo: string; 
-        titulo: string; 
-        total_inscricoes: string; 
-        total_conclusoes: string; 
-        taxa_conclusao: string; 
-        avaliacao_media: number; 
-        ativo: boolean;
-        pendentes_correcao: string;
-      }) => ({
-        codigo: curso.codigo,
-        titulo: curso.titulo,
-        inscritos: parseInt(curso.total_inscricoes || '0'),
-        concluidos: parseInt(curso.total_conclusoes || '0'),
-        taxa_conclusao: parseFloat(curso.taxa_conclusao || '0'),
-        avaliacao_media: curso.avaliacao_media ? parseFloat(curso.avaliacao_media.toString()) : null,
-        status: curso.ativo ? true : false,
-        pendentes_correcao: parseInt(curso.pendentes_correcao || '0')
-      }))
+      }
     };
   } catch (error) {
     console.error('[dashboard] Error getting instructor dashboard:', error);
@@ -216,8 +167,7 @@ async function getInstructorDashboard(userData: { id: string }) {
         taxa_conclusao_geral: 0,
         avaliacao_media_geral: 0,
         pendentes_correcao: 0
-      },
-      cursos: []
+      }
     };
   }
 }
