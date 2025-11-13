@@ -1,17 +1,23 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { logger } from './config/logger.js';
 import { loadOpenApi } from './config/openapi.js';
 import { cargoRouter, departamentoRouter, funcionarioRouter, instructorRouter, publicRouter } from './routes/routes.js';
 
 export function createServer() {
   const app = express();
-  app.use(express.json());
-  app.use(cors({ origin: '*' }));
-  app.use((req, _res, next) => { 
-    (req as express.Request & { log: typeof logger }).log = logger; 
-    next(); 
-  });
+app.use(express.json());
+  const allowAll = process.env.ALLOW_ALL_ORIGINS === 'true';
+  app.use(cors({
+    origin: allowAll ? (origin, cb) => cb(null, true) : (process.env.CORS_ORIGINS || '').split(',').filter(Boolean),
+    credentials: true
+  }));
+app.use(cookieParser());
+app.use((req, _res, next) => { 
+  (req as express.Request & { log: typeof logger }).log = logger; 
+  next(); 
+});
 
   app.get('/openapi.json', async (_req,res)=> {
     try {
