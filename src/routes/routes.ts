@@ -24,6 +24,7 @@ cargoRouter.put("/:codigo", cargoCtrl.updateCargo);
 cargoRouter.delete("/:codigo", cargoCtrl.deleteCargo);
 
 export const funcionarioRouter = Router();
+funcionarioRouter.get("/me", funcCtrl.getMe);  // Buscar dados do usuário autenticado
 funcionarioRouter.get("/", funcCtrl.listFuncionarios);
 funcionarioRouter.get("/dashboard", dashboardCtrl.getDashboard);
 funcionarioRouter.get("/:id", funcCtrl.getFuncionario);  // Buscar funcionário por ID

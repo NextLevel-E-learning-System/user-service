@@ -386,3 +386,56 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
   res.json({ mensagem: 'Senha redefinida e evento enviado.' });
   });
 };
+
+// Endpoint para obter dados do usuário autenticado
+export const getMe = async (req: Request, res: Response) => {
+  // O user_id virá do header x-user-id injetado pelo API Gateway
+  const userId = req.headers['x-user-id'] as string;
+  
+  if (!userId) {
+    return res.status(401).json({ 
+      erro: 'nao_autenticado', 
+      mensagem: 'Usuário não autenticado' 
+    });
+  }
+  
+  try {
+    await withClient(async (c) => {
+      const { rows } = await c.query(
+        `SELECT id, nome, email, cpf, departamento_id, cargo_nome, xp_total, nivel, role, ativo
+         FROM user_service.funcionarios
+         WHERE id = $1 AND ativo = true`,
+        [userId]
+      );
+      
+      if (rows.length === 0) {
+        return res.status(404).json({ 
+          erro: 'usuario_nao_encontrado', 
+          mensagem: 'Usuário não encontrado ou inativo' 
+        });
+      }
+      
+      const user = rows[0];
+      
+      // Retornar dados completos do funcionário
+      res.status(200).json({
+        id: user.id,
+        nome: user.nome,
+        email: user.email,
+        cpf: user.cpf,
+        role: user.role,
+        departamento_id: user.departamento_id,
+        cargo_nome: user.cargo_nome,
+        xp_total: user.xp_total,
+        nivel: user.nivel,
+        ativo: user.ativo
+      });
+    });
+  } catch (error) {
+    console.error('[user-service] Erro no /me:', error);
+    return res.status(500).json({ 
+      erro: 'erro_servidor', 
+      mensagem: 'Erro ao buscar dados do usuário' 
+    });
+  }
+};
