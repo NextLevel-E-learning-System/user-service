@@ -9,7 +9,6 @@ export const publicRouter = Router();
 publicRouter.get("/departamentos", deptCtrl.listDepartamentos);
 publicRouter.get("/cargos", cargoCtrl.listCargos);
 publicRouter.post("/register", funcCtrl.registerFuncionario); // auto-cadastro FUNCIONARIO
-publicRouter.post("/reset-password", funcCtrl.requestPasswordReset);
 
 export const departamentoRouter = Router();
 departamentoRouter.get("/admin", deptCtrl.listAllDepartamentos); // Rota administrativa - todos os departamentos
@@ -24,7 +23,6 @@ cargoRouter.put("/:codigo", cargoCtrl.updateCargo);
 cargoRouter.delete("/:codigo", cargoCtrl.deleteCargo);
 
 export const funcionarioRouter = Router();
-funcionarioRouter.get("/me", funcCtrl.getMe);  // Buscar dados do usuário autenticado
 funcionarioRouter.get("/", funcCtrl.listFuncionarios);
 funcionarioRouter.get("/dashboard", dashboardCtrl.getDashboard);
 funcionarioRouter.get("/:id", funcCtrl.getFuncionario);  // Buscar funcionário por ID
@@ -37,4 +35,3 @@ instructorRouter.get("/:id", instructorCtrl.getInstructor);
 instructorRouter.post("/", instructorCtrl.createInstructor);
 instructorRouter.put("/:id", instructorCtrl.updateInstructor);
 instructorRouter.delete("/:id", instructorCtrl.deleteInstructor);
-instructorRouter.put("/:id/toggle-status", instructorCtrl.toggleInstructorStatus);
