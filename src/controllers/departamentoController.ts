@@ -39,37 +39,6 @@ export const listAllDepartamentos = async (_req: Request, res: Response) => {
   });
 };
 
-export const getDepartamento = async (req: Request, res: Response) => {
-  const { codigo } = req.params;
-  await withClient(async (c) => {
-    const { rows } = await c.query(`
-      SELECT 
-        d.codigo,
-        d.nome,
-        d.descricao,
-        d.gestor_funcionario_id,
-        f.nome as gestor_nome,
-        f.email as gestor_email,
-        d.criado_em,
-        d.atualizado_em,
-        COUNT(func.id) as total_funcionarios,
-        COUNT(cat.codigo) as total_categorias
-      FROM user_service.departamentos d
-      LEFT JOIN user_service.funcionarios f ON d.gestor_funcionario_id = f.id
-      LEFT JOIN user_service.funcionarios func ON d.codigo = func.departamento_id AND func.ativo = true
-      LEFT JOIN course_service.categorias cat ON d.codigo = cat.departamento_codigo
-      WHERE d.codigo = $1
-      GROUP BY d.codigo, d.nome, d.descricao, d.gestor_funcionario_id, f.nome, f.email, d.criado_em, d.atualizado_em
-    `, [codigo]);
-    
-    if (rows.length === 0) {
-  return res.status(404).json({ erro: 'departamento_nao_encontrado', mensagem: 'Departamento não encontrado' });
-    }
-    
-  res.json({ departamento: rows[0], mensagem: 'Departamento obtido com sucesso' });
-  });
-};
-
 export const createDepartamento = async (req: Request, res: Response) => {
   const { codigo, nome, descricao, gestor_funcionario_id } = req.body;
   await withClient(async (c) => {

@@ -9,7 +9,7 @@ export async function hashPassword(pwd: string) {
 }
 export const registerFuncionario = async (req: Request, res: Response) => {
   try {
-    const { nome, email, cpf, departamento_id, cargo_nome, role = 'FUNCIONARIO', ativo = true } = req.body;
+    const { nome, email, cpf, departamento_id, cargo_nome, role = 'FUNCIONARIO' } = req.body;
     
     // Validação básica
     if (!nome || !email || !cpf) {
@@ -125,98 +125,6 @@ export const listFuncionarios = async (_req: Request, res: Response) => {
   });
 };
 
-export const getFuncionario = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  
-  await withClient(async (c) => {
-    const { rows } = await c.query(
-      `SELECT id, nome, email, cpf, departamento_id, cargo_nome, xp_total, nivel, role, ativo, criado_em, atualizado_em 
-       FROM user_service.funcionarios 
-       WHERE id = $1`,
-      [id]
-    );
-    
-    if (rows.length === 0) {
-      return res.status(404).json({ erro: 'funcionario_nao_encontrado', mensagem: 'Funcionário não encontrado' });
-    }
-    
-    res.json({ funcionario: rows[0], mensagem: 'Funcionário obtido com sucesso' });
-  });
-};
-
-export const updateFuncionarioRole = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { role } = req.body;
-  const actor_id = (req as Request & { userId: string }).userId;
-
-  await withClient(async (c) => {
-    // Iniciar transação
-    await c.query('BEGIN');
-
-    try {
-      // Buscar role atual antes de atualizar
-      const { rows: currentRows } = await c.query(`
-        SELECT role FROM user_service.funcionarios 
-        WHERE id = $1
-      `, [id]);
-
-      if (currentRows.length === 0) {
-        await c.query('ROLLBACK');
-        return res.status(404).json({ 
-          erro: 'funcionario_nao_encontrado', 
-          mensagem: 'Funcionário não encontrado' 
-        });
-      }
-
-      const oldRole = currentRows[0].role;
-
-      // Atualizar role na tabela funcionarios
-      const { rows } = await c.query(`
-        UPDATE user_service.funcionarios 
-        SET role = $1, atualizado_em = NOW() 
-        WHERE id = $2
-        RETURNING *
-      `, [role, id]);
-
-      // Gerenciar tabela instrutores baseado na mudança de role
-      if (role === 'INSTRUTOR' && oldRole !== 'INSTRUTOR') {
-        // Adicionar à tabela instrutores se a nova role é INSTRUTOR
-        await c.query(`
-          INSERT INTO user_service.instrutores (funcionario_id)
-          VALUES ($1)
-          ON CONFLICT (funcionario_id) DO NOTHING
-        `, [id]);
-      } else if (role !== 'INSTRUTOR' && oldRole === 'INSTRUTOR') {
-        // Remover da tabela instrutores se a role deixou de ser INSTRUTOR
-        await c.query(`
-          DELETE FROM user_service.instrutores 
-          WHERE funcionario_id = $1
-        `, [id]);
-      }
-
-      // Commit da transação
-      await c.query('COMMIT');
-
-      await emitUserRoleChanged(id, role);
-
-      res.json({ 
-        funcionario: rows[0], 
-        granted_by: actor_id,
-        mensagem: `Role atualizada para ${role}${
-          role === 'INSTRUTOR' && oldRole !== 'INSTRUTOR' 
-            ? ' e adicionado à tabela de instrutores' 
-            : role !== 'INSTRUTOR' && oldRole === 'INSTRUTOR'
-            ? ' e removido da tabela de instrutores'
-            : ''
-        }`
-      });
-    } catch (txError) {
-      await c.query('ROLLBACK');
-      throw txError;
-    }
-  });
-};
-
 export const updateFuncionario = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { nome, email, departamento_id, cargo_nome, role, ativo } = req.body;
@@ -247,8 +155,8 @@ export const updateFuncionario = async (req: Request, res: Response) => {
         const oldAtivo = currentFunc.ativo;
 
         // Construir query de atualização dinamicamente
-        const updates: string[] = [];
-        const values: any[] = [];
+  const updates: string[] = [];
+  const values: unknown[] = [];
         let paramIndex = 1;
 
         if (nome !== undefined) {
@@ -356,11 +264,12 @@ export const updateFuncionario = async (req: Request, res: Response) => {
         throw txError;
       }
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Erro ao atualizar funcionário:', error);
+    const err = error instanceof Error ? error : new Error('Erro ao atualizar funcionário');
     res.status(500).json({ 
       erro: 'erro_interno', 
-      mensagem: error.message || 'Erro ao atualizar funcionário' 
+      mensagem: err.message || 'Erro ao atualizar funcionário' 
     });
   }
 };

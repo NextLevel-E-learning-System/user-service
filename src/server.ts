@@ -3,7 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { logger } from './config/logger.js';
 import { loadOpenApi } from './config/openapi.js';
-import { cargoRouter, departamentoRouter, funcionarioRouter, instructorRouter, publicRouter } from './routes/routes.js';
+import { departamentoRouter, funcionarioRouter, instructorRouter, publicRouter } from './routes/routes.js';
 
 export function createServer() {
   const app = express();
@@ -32,7 +32,6 @@ app.use((req, _res, next) => {
   app.use('/users/v1/funcionarios', funcionarioRouter);
   app.use('/users/v1/instrutores', instructorRouter);
   app.use('/users/v1/departamentos', departamentoRouter);
-  app.use('/users/v1/cargos', cargoRouter);
   
   return app;
 }
