@@ -19,11 +19,12 @@ export async function emitUserCreated(email: string, senha: string, userId: stri
   });
 }
 
-export async function emitUserPasswordReset(email: string, userId: string, novaSenha: string) {
+export async function emitUserPasswordReset(email: string, userId: string, novaSenha: string, nome?: string) {
   await publishEvent('user.password_reset', { 
     userId,
     email, 
     senha: novaSenha,
+    nome,
     timestamp: new Date().toISOString() 
   });
 }

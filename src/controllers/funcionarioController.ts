@@ -284,15 +284,37 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
 
   await withClient(async (c) => {
     const { rows } = await c.query(
-      `SELECT id FROM user_service.funcionarios WHERE email=$1 AND ativo=true`,
+      `SELECT id, nome FROM user_service.funcionarios WHERE email=$1 AND ativo=true`,
       [email]
     );
-  if (rows.length === 0) return res.status(404).json({ erro: 'usuario_nao_encontrado', mensagem: 'Usuário não encontrado' });
+    if (rows.length === 0) {
+      return res.status(404).json({ erro: 'usuario_nao_encontrado', mensagem: 'Usuário não encontrado' });
+    }
+
     const funcionario = rows[0];
 
-    await emitUserPasswordReset(email, funcionario.id, senhaHash);
+    await c.query('BEGIN');
 
-  res.json({ mensagem: 'Senha redefinida e evento enviado.' });
+    try {
+      await c.query(
+        `UPDATE auth_service.usuarios SET senha_hash = $1 WHERE funcionario_id = $2`,
+        [senhaHash, funcionario.id]
+      );
+
+      await c.query(
+        `UPDATE auth_service.tokens SET ativo = false WHERE funcionario_id = $1 AND ativo = true`,
+        [funcionario.id]
+      );
+
+      await c.query('COMMIT');
+    } catch (txErr) {
+      await c.query('ROLLBACK');
+      throw txErr;
+    }
+
+    await emitUserPasswordReset(email, funcionario.id, novaSenha, funcionario.nome);
+
+    res.json({ mensagem: 'Senha redefinida e evento enviado.' });
   });
 };
 
