@@ -37,11 +37,3 @@ export async function emitUserUpdated(userId: string, changes: Record<string, un
     timestamp: new Date().toISOString() 
   });
 }
-
-export async function emitUserDeactivated(userId: string, deactivatedBy?: string) {
-  await publishEvent('user.deactivated', { 
-    userId,
-    deactivatedBy,
-    timestamp: new Date().toISOString() 
-  });
-}

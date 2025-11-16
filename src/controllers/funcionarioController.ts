@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { withClient } from "../config/db.js";
 import bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
-import { emitUserCreated, emitUserPasswordReset, emitUserRoleChanged } from "../services/events.js";
+import { emitUserCreated, emitUserPasswordReset, emitUserRoleChanged, emitUserUpdated } from "../services/events.js";
 
 export async function hashPassword(pwd: string) {
    return createHash('sha256').update(pwd).digest('hex');
@@ -155,25 +155,38 @@ export const updateFuncionario = async (req: Request, res: Response) => {
         const oldAtivo = currentFunc.ativo;
 
         // Construir query de atualização dinamicamente
-  const updates: string[] = [];
-  const values: unknown[] = [];
+        const updates: string[] = [];
+        const values: unknown[] = [];
+        const changedFields: Record<string, unknown> = {};
         let paramIndex = 1;
 
         if (nome !== undefined) {
           updates.push(`nome = $${paramIndex++}`);
           values.push(nome);
+          if (nome !== currentFunc.nome) {
+            changedFields.nome = nome;
+          }
         }
         if (email !== undefined) {
           updates.push(`email = $${paramIndex++}`);
           values.push(email);
+          if (email !== currentFunc.email) {
+            changedFields.email = email;
+          }
         }
         if (departamento_id !== undefined) {
           updates.push(`departamento_id = $${paramIndex++}`);
           values.push(departamento_id);
+          if (departamento_id !== currentFunc.departamento_id) {
+            changedFields.departamento_id = departamento_id;
+          }
         }
         if (cargo_nome !== undefined) {
           updates.push(`cargo_nome = $${paramIndex++}`);
           values.push(cargo_nome);
+          if (cargo_nome !== currentFunc.cargo_nome) {
+            changedFields.cargo_nome = cargo_nome;
+          }
         }
         if (role !== undefined) {
           updates.push(`role = $${paramIndex++}`);
@@ -253,6 +266,10 @@ export const updateFuncionario = async (req: Request, res: Response) => {
 
         // Commit da transação
         await c.query('COMMIT');
+
+        if (Object.keys(changedFields).length > 0) {
+          await emitUserUpdated(id, changedFields, actor_id);
+        }
 
         res.json({ 
           funcionario: updatedFunc,
