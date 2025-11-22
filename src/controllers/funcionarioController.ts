@@ -1,370 +1,413 @@
-import { Request, Response } from "express";
-import { withClient } from "../config/db.js";
-import bcrypt from 'bcryptjs';
-import { createHash } from 'crypto';
-import { emitUserCreated, emitUserPasswordReset, emitUserRoleChanged, emitUserUpdated } from "../services/events.js";
+import { Request, Response } from 'express'
+import { withClient } from '../config/db.js'
+import bcrypt from 'bcryptjs'
+import { createHash } from 'crypto'
+import {
+  emitUserCreated,
+  emitUserPasswordReset,
+  emitUserRoleChanged,
+  emitUserUpdated,
+} from '../services/events.js'
 
 export async function hashPassword(pwd: string) {
-   return createHash('sha256').update(pwd).digest('hex');
+  return createHash('sha256').update(pwd).digest('hex')
 }
 export const registerFuncionario = async (req: Request, res: Response) => {
   try {
-    const { nome, email, cpf, departamento_id, cargo_nome, role = 'FUNCIONARIO' } = req.body;
-    
+    const { nome, email, cpf, departamento_id, cargo_nome, role = 'FUNCIONARIO' } = req.body
+
     // Validação básica
     if (!nome || !email || !cpf) {
-      return res.status(400).json({ erro: 'dados_invalidos', mensagem: 'Nome, email e CPF são obrigatórios' });
+      return res
+        .status(400)
+        .json({ erro: 'dados_invalidos', mensagem: 'Nome, email e CPF são obrigatórios' })
     }
 
     // Validar CPF: apenas números e exatamente 11 dígitos
-    const cpfLimpo = cpf.replace(/\D/g, ''); // Remove caracteres não numéricos
+    const cpfLimpo = cpf.replace(/\D/g, '') // Remove caracteres não numéricos
     if (cpfLimpo.length !== 11) {
-      return res.status(400).json({ 
-        erro: 'cpf_invalido', 
-        mensagem: 'CPF deve conter exatamente 11 dígitos numéricos' 
-      });
+      return res.status(400).json({
+        erro: 'cpf_invalido',
+        mensagem: 'CPF deve conter exatamente 11 dígitos numéricos',
+      })
     }
 
     // Validar domínio de email
-    const allowedDomains = (process.env.ALLOWED_EMAIL_DOMAINS || 'gmail.com').split(',');
-    const isValidDomain = allowedDomains.some(domain => 
+    const allowedDomains = (process.env.ALLOWED_EMAIL_DOMAINS || 'gmail.com').split(',')
+    const isValidDomain = allowedDomains.some(domain =>
       email.toLowerCase().endsWith(`@${domain.trim().toLowerCase()}`)
-    );
+    )
     if (!isValidDomain) {
-      return res.status(400).json({ 
-        erro: 'dominio_nao_permitido', 
-        mensagem: `Apenas emails dos domínios ${allowedDomains.join(', ')} são permitidos para auto-cadastro` 
-      });
+      return res.status(400).json({
+        erro: 'dominio_nao_permitido',
+        mensagem: `Apenas emails dos domínios ${allowedDomains.join(', ')} são permitidos para auto-cadastro`,
+      })
     }
 
     // Validar role
-    const validRoles = ['ADMIN', 'INSTRUTOR', 'GERENTE', 'FUNCIONARIO'];
+    const validRoles = ['ADMIN', 'INSTRUTOR', 'GERENTE', 'FUNCIONARIO']
     if (!validRoles.includes(role)) {
-      return res.status(400).json({ erro: 'role_invalida', mensagem: 'Role inválida. Use: ADMIN, INSTRUTOR, GERENTE ou FUNCIONARIO' });
+      return res.status(400).json({
+        erro: 'role_invalida',
+        mensagem: 'Role inválida. Use: ADMIN, INSTRUTOR, GERENTE ou FUNCIONARIO',
+      })
     }
 
     // Gerar senha aleatória
-   const senhaClara = Math.random().toString().slice(-6);
-  const senhaHash = await bcrypt.hash(senhaClara, 12);
+    const senhaClara = Math.random().toString().slice(-6)
+    const senhaHash = await bcrypt.hash(senhaClara, 12)
 
-    await withClient(async (c) => {
+    await withClient(async c => {
       // Usar transação para garantir atomicidade
-      await c.query('BEGIN');
+      await c.query('BEGIN')
 
       try {
         // 1. Verificar se CPF já existe
         const { rows: existingCpf } = await c.query(
           `SELECT id FROM user_service.funcionarios WHERE cpf = $1`,
           [cpfLimpo]
-        );
+        )
         if (existingCpf.length > 0) {
-          throw new Error('cpf_ja_cadastrado');
+          throw new Error('cpf_ja_cadastrado')
         }
 
         // 2. Verificar se email já existe no auth_service
         const { rows: existingEmail } = await c.query(
           `SELECT funcionario_id FROM auth_service.usuarios WHERE email = $1`,
           [email]
-        );
+        )
         if (existingEmail.length > 0) {
-          throw new Error('email_ja_cadastrado');
+          throw new Error('email_ja_cadastrado')
         }
 
         // 3. Criar usuário no user_service.funcionarios
-        const { rows: funcionarioRows } = await c.query(`
+        const { rows: funcionarioRows } = await c.query(
+          `
           INSERT INTO user_service.funcionarios
           (nome, email, cpf, departamento_id, cargo_nome, role, ativo, xp_total, nivel)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
-        `, [nome, email, cpfLimpo, departamento_id, cargo_nome, role, true, 0, 'Iniciante']);
-        const funcionario = funcionarioRows[0];
+        `,
+          [nome, email, cpfLimpo, departamento_id, cargo_nome, role, true, 0, 'Iniciante']
+        )
+        const funcionario = funcionarioRows[0]
 
         // 4. Criar usuário no auth_service.usuarios com o funcionario_id
-        await c.query(`
+        await c.query(
+          `
           INSERT INTO auth_service.usuarios (funcionario_id, email, senha_hash)
           VALUES ($1, $2, $3)
-        `, [funcionario.id, funcionario.email, senhaHash]);
+        `,
+          [funcionario.id, funcionario.email, senhaHash]
+        )
 
         // Commit da transação
-        await c.query('COMMIT');
+        await c.query('COMMIT')
 
         // Emitir evento com a senha (será capturado pelo notification-service)
-        await emitUserCreated(funcionario.email, senhaClara, funcionario.id, funcionario.nome);
+        await emitUserCreated(funcionario.email, senhaClara, funcionario.id, funcionario.nome)
 
-        res.status(201).json({ funcionario, mensagem: 'Funcionário criado com sucesso' });
+        res.status(201).json({ funcionario, mensagem: 'Funcionário criado com sucesso' })
       } catch (error) {
         // Rollback em caso de erro
-        await c.query('ROLLBACK');
-        throw error;
+        await c.query('ROLLBACK')
+        throw error
       }
-    });
+    })
   } catch (error) {
-    console.error('Erro ao registrar funcionário:', error);
-    
+    console.error('Erro ao registrar funcionário:', error)
+
     // Tratar erros específicos
     if (error instanceof Error) {
       if (error.message === 'cpf_ja_cadastrado') {
-        return res.status(409).json({ erro: 'cpf_ja_cadastrado', mensagem: 'CPF já está cadastrado no sistema' });
+        return res
+          .status(409)
+          .json({ erro: 'cpf_ja_cadastrado', mensagem: 'CPF já está cadastrado no sistema' })
       }
       if (error.message === 'email_ja_cadastrado') {
-        return res.status(409).json({ erro: 'email_ja_cadastrado', mensagem: 'Email já está cadastrado no sistema' });
+        return res
+          .status(409)
+          .json({ erro: 'email_ja_cadastrado', mensagem: 'Email já está cadastrado no sistema' })
       }
     }
-    
-    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-    res.status(500).json({ erro: 'erro_interno', mensagem: 'Erro interno do servidor', detalhes: errorMessage });
+
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+    res
+      .status(500)
+      .json({ erro: 'erro_interno', mensagem: 'Erro interno do servidor', detalhes: errorMessage })
   }
-};
+}
 
 export const listFuncionarios = async (_req: Request, res: Response) => {
-  await withClient(async (c) => {
+  await withClient(async c => {
     const { rows } = await c.query(`
       SELECT * FROM user_service.funcionarios 
       ORDER BY criado_em DESC
-    `);
-    res.json({ items: rows, mensagem: 'Funcionários listados com sucesso' });
-  });
-};
+    `)
+    res.json({ items: rows, mensagem: 'Funcionários listados com sucesso' })
+  })
+}
 
 export const updateFuncionario = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { nome, email, departamento_id, cargo_nome, role, ativo } = req.body;
-  const actor_id = (req as Request & { userId: string }).userId;
+  const { id } = req.params
+  const { nome, email, departamento_id, cargo_nome, role, ativo } = req.body
+  const actor_id = (req as Request & { userId: string }).userId
 
   try {
-    await withClient(async (c) => {
+    await withClient(async c => {
       // Iniciar transação
-      await c.query('BEGIN');
+      await c.query('BEGIN')
 
       try {
         // Buscar funcionário atual
-        const { rows: currentRows } = await c.query(`
+        const { rows: currentRows } = await c.query(
+          `
           SELECT * FROM user_service.funcionarios 
           WHERE id = $1
-        `, [id]);
+        `,
+          [id]
+        )
 
         if (currentRows.length === 0) {
-          await c.query('ROLLBACK');
-          return res.status(404).json({ 
-            erro: 'funcionario_nao_encontrado', 
-            mensagem: 'Funcionário não encontrado' 
-          });
+          await c.query('ROLLBACK')
+          return res.status(404).json({
+            erro: 'funcionario_nao_encontrado',
+            mensagem: 'Funcionário não encontrado',
+          })
         }
 
-        const currentFunc = currentRows[0];
-        const oldRole = currentFunc.role;
-        const oldAtivo = currentFunc.ativo;
+        const currentFunc = currentRows[0]
+        const oldRole = currentFunc.role
+        const oldAtivo = currentFunc.ativo
 
         // Construir query de atualização dinamicamente
-        const updates: string[] = [];
-        const values: unknown[] = [];
-        const changedFields: Record<string, unknown> = {};
-        let paramIndex = 1;
+        const updates: string[] = []
+        const values: unknown[] = []
+        const changedFields: Record<string, unknown> = {}
+        let paramIndex = 1
 
         if (nome !== undefined) {
-          updates.push(`nome = $${paramIndex++}`);
-          values.push(nome);
+          updates.push(`nome = $${paramIndex++}`)
+          values.push(nome)
           if (nome !== currentFunc.nome) {
-            changedFields.nome = nome;
+            changedFields.nome = nome
           }
         }
         if (email !== undefined) {
-          updates.push(`email = $${paramIndex++}`);
-          values.push(email);
+          updates.push(`email = $${paramIndex++}`)
+          values.push(email)
           if (email !== currentFunc.email) {
-            changedFields.email = email;
+            changedFields.email = email
           }
         }
         if (departamento_id !== undefined) {
-          updates.push(`departamento_id = $${paramIndex++}`);
-          values.push(departamento_id);
+          updates.push(`departamento_id = $${paramIndex++}`)
+          values.push(departamento_id)
           if (departamento_id !== currentFunc.departamento_id) {
-            changedFields.departamento_id = departamento_id;
+            changedFields.departamento_id = departamento_id
           }
         }
         if (cargo_nome !== undefined) {
-          updates.push(`cargo_nome = $${paramIndex++}`);
-          values.push(cargo_nome);
+          updates.push(`cargo_nome = $${paramIndex++}`)
+          values.push(cargo_nome)
           if (cargo_nome !== currentFunc.cargo_nome) {
-            changedFields.cargo_nome = cargo_nome;
+            changedFields.cargo_nome = cargo_nome
           }
         }
         if (role !== undefined) {
-          updates.push(`role = $${paramIndex++}`);
-          values.push(role);
+          updates.push(`role = $${paramIndex++}`)
+          values.push(role)
         }
         if (ativo !== undefined) {
-          updates.push(`ativo = $${paramIndex++}`);
-          values.push(ativo);
-          
+          updates.push(`ativo = $${paramIndex++}`)
+          values.push(ativo)
+
           // Se está desativando, adicionar timestamp
           if (!ativo && oldAtivo) {
-            updates.push(`inactivated_at = NOW()`);
+            updates.push(`inactivated_at = NOW()`)
           } else if (ativo && !oldAtivo) {
-            updates.push(`inactivated_at = NULL`);
+            updates.push(`inactivated_at = NULL`)
           }
         }
 
         // Adicionar atualizado_em
-        updates.push(`atualizado_em = NOW()`);
-        values.push(id);
+        updates.push(`atualizado_em = NOW()`)
+        values.push(id)
 
         // Executar UPDATE
-        const { rows } = await c.query(`
+        const { rows } = await c.query(
+          `
           UPDATE user_service.funcionarios 
           SET ${updates.join(', ')}
           WHERE id = $${paramIndex}
           RETURNING *
-        `, values);
+        `,
+          values
+        )
 
-        const updatedFunc = rows[0];
+        const updatedFunc = rows[0]
 
         // Gerenciar tabela instrutores se role mudou
         if (role !== undefined && role !== oldRole) {
           if (role === 'INSTRUTOR' && oldRole !== 'INSTRUTOR') {
             // Adicionar à tabela instrutores
-            await c.query(`
+            await c.query(
+              `
               INSERT INTO user_service.instrutores (funcionario_id)
               VALUES ($1)
               ON CONFLICT (funcionario_id) DO NOTHING
-            `, [id]);
+            `,
+              [id]
+            )
           } else if (role !== 'INSTRUTOR' && oldRole === 'INSTRUTOR') {
             // Remover da tabela instrutores
-            await c.query(`
+            await c.query(
+              `
               DELETE FROM user_service.instrutores 
               WHERE funcionario_id = $1
-            `, [id]);
+            `,
+              [id]
+            )
           }
 
           // Emitir evento de mudança de role
-          await emitUserRoleChanged(id, role);
+          await emitUserRoleChanged(id, role)
         }
 
         // Atualizar status no auth-service se mudou (direto no banco)
         if (ativo !== undefined && ativo !== oldAtivo) {
           try {
             // Atualizar status e inactivated_at na tabela auth_service.usuarios
-            await c.query(`
+            await c.query(
+              `
               UPDATE auth_service.usuarios 
               SET ativo = $1, 
                   inactivated_at = CASE WHEN $1 = false THEN NOW() ELSE NULL END
               WHERE email = $2
-            `, [ativo, updatedFunc.email]);
-            
+            `,
+              [ativo, updatedFunc.email]
+            )
+
             // Se desativou, invalidar todos os tokens ativos
             if (!ativo) {
-              await c.query(`
+              await c.query(
+                `
                 UPDATE auth_service.tokens 
                 SET ativo = false 
                 WHERE funcionario_id = $1 AND ativo = true
-              `, [id]);
+              `,
+                [id]
+              )
             }
           } catch (authError) {
-            console.error('Erro ao atualizar status no auth-service:', authError);
+            console.error('Erro ao atualizar status no auth-service:', authError)
             // Não faz rollback - funcionário foi atualizado, mas pode haver problema no auth
           }
         }
 
         // Commit da transação
-        await c.query('COMMIT');
+        await c.query('COMMIT')
 
         if (Object.keys(changedFields).length > 0) {
-          await emitUserUpdated(id, changedFields, actor_id);
+          await emitUserUpdated(id, changedFields, actor_id)
         }
 
-        res.json({ 
+        res.json({
           funcionario: updatedFunc,
           updated_by: actor_id,
-          mensagem: 'Funcionário atualizado com sucesso'
-        });
+          mensagem: 'Funcionário atualizado com sucesso',
+        })
       } catch (txError) {
-        await c.query('ROLLBACK');
-        throw txError;
+        await c.query('ROLLBACK')
+        throw txError
       }
-    });
+    })
   } catch (error) {
-    console.error('Erro ao atualizar funcionário:', error);
-    const err = error instanceof Error ? error : new Error('Erro ao atualizar funcionário');
-    res.status(500).json({ 
-      erro: 'erro_interno', 
-      mensagem: err.message || 'Erro ao atualizar funcionário' 
-    });
+    console.error('Erro ao atualizar funcionário:', error)
+    const err = error instanceof Error ? error : new Error('Erro ao atualizar funcionário')
+    res.status(500).json({
+      erro: 'erro_interno',
+      mensagem: err.message || 'Erro ao atualizar funcionário',
+    })
   }
-};
+}
 
 export const requestPasswordReset = async (req: Request, res: Response) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ erro: 'email_obrigatorio', mensagem: 'Email é obrigatório' });
+  const { email } = req.body
+  if (!email)
+    return res.status(400).json({ erro: 'email_obrigatorio', mensagem: 'Email é obrigatório' })
 
-  const novaSenha = Math.random().toString().slice(-6);
+  const senha = Math.random().toString().slice(-6)
 
-  const senhaHash = await bcrypt.hash(novaSenha, 12);
+  const senhaHash = await bcrypt.hash(senha, 12)
 
-  await withClient(async (c) => {
+  await withClient(async c => {
     const { rows } = await c.query(
       `SELECT id, nome FROM user_service.funcionarios WHERE email=$1 AND ativo=true`,
       [email]
-    );
+    )
     if (rows.length === 0) {
-      return res.status(404).json({ erro: 'usuario_nao_encontrado', mensagem: 'Usuário não encontrado' });
+      return res
+        .status(404)
+        .json({ erro: 'usuario_nao_encontrado', mensagem: 'Usuário não encontrado' })
     }
 
-    const funcionario = rows[0];
+    const funcionario = rows[0]
 
-    await c.query('BEGIN');
+    await c.query('BEGIN')
 
     try {
-      await c.query(
-        `UPDATE auth_service.usuarios SET senha_hash = $1 WHERE funcionario_id = $2`,
-        [senhaHash, funcionario.id]
-      );
+      await c.query(`UPDATE auth_service.usuarios SET senha_hash = $1 WHERE funcionario_id = $2`, [
+        senhaHash,
+        funcionario.id,
+      ])
 
       await c.query(
         `UPDATE auth_service.tokens SET ativo = false WHERE funcionario_id = $1 AND ativo = true`,
         [funcionario.id]
-      );
+      )
 
-      await c.query('COMMIT');
+      await c.query('COMMIT')
     } catch (txErr) {
-      await c.query('ROLLBACK');
-      throw txErr;
+      await c.query('ROLLBACK')
+      throw txErr
     }
 
-    await emitUserPasswordReset(email, funcionario.id, novaSenha, funcionario.nome);
+    await emitUserPasswordReset(email, funcionario.id, senha, funcionario.nome)
 
-    res.json({ mensagem: 'Senha redefinida e evento enviado.' });
-  });
-};
+    res.json({ mensagem: 'Senha redefinida e evento enviado.' })
+  })
+}
 
 // Endpoint para obter dados do usuário autenticado
 export const getMe = async (req: Request, res: Response) => {
   // O user_id virá do header x-user-id injetado pelo API Gateway
-  const userId = req.headers['x-user-id'] as string;
-  
+  const userId = req.headers['x-user-id'] as string
+
   if (!userId) {
-    return res.status(401).json({ 
-      erro: 'nao_autenticado', 
-      mensagem: 'Usuário não autenticado' 
-    });
+    return res.status(401).json({
+      erro: 'nao_autenticado',
+      mensagem: 'Usuário não autenticado',
+    })
   }
-  
+
   try {
-    await withClient(async (c) => {
+    await withClient(async c => {
       const { rows } = await c.query(
         `SELECT id, nome, email, cpf, departamento_id, cargo_nome, xp_total, nivel, role, ativo
          FROM user_service.funcionarios
          WHERE id = $1 AND ativo = true`,
         [userId]
-      );
-      
+      )
+
       if (rows.length === 0) {
-        return res.status(404).json({ 
-          erro: 'usuario_nao_encontrado', 
-          mensagem: 'Usuário não encontrado ou inativo' 
-        });
+        return res.status(404).json({
+          erro: 'usuario_nao_encontrado',
+          mensagem: 'Usuário não encontrado ou inativo',
+        })
       }
-      
-      const user = rows[0];
-      
+
+      const user = rows[0]
+
       // Retornar dados completos do funcionário
       res.status(200).json({
         id: user.id,
@@ -376,14 +419,14 @@ export const getMe = async (req: Request, res: Response) => {
         cargo_nome: user.cargo_nome,
         xp_total: user.xp_total,
         nivel: user.nivel,
-        ativo: user.ativo
-      });
-    });
+        ativo: user.ativo,
+      })
+    })
   } catch (error) {
-    console.error('[user-service] Erro no /me:', error);
-    return res.status(500).json({ 
-      erro: 'erro_servidor', 
-      mensagem: 'Erro ao buscar dados do usuário' 
-    });
+    console.error('[user-service] Erro no /me:', error)
+    return res.status(500).json({
+      erro: 'erro_servidor',
+      mensagem: 'Erro ao buscar dados do usuário',
+    })
   }
-};
+}
